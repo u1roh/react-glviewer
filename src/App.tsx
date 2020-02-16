@@ -1,6 +1,7 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
+import GLCanvas from './GLCanvas';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         >
           Learn React
         </a>
+        <GLCanvas useWebGL2={false}></GLCanvas>
       </header>
     </div>
   );
