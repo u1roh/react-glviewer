@@ -75,7 +75,7 @@ class TrianglesDrawerProgram {
     static get(gl: WebGLRenderingContext) {
         let instance = this.registry.get(gl);
         if (instance === undefined) {
-            instance = new TrianglesDrawerProgram(gl, false);
+            instance = new TrianglesDrawerProgram(gl);
             this.registry.set(gl, instance);
         }
         return instance;
@@ -87,12 +87,9 @@ class TrianglesDrawerProgram {
     private atrNormal: number;
     private uniModelViewMatrix: WebGLUniformLocation;
     private uniProjMatrix: WebGLUniformLocation;
-    constructor(gl: WebGLRenderingContext, useWebGL2: boolean) {
+    private constructor(gl: WebGLRenderingContext) {
         this.gl = gl;
-        this.program = glview.createProgram(
-            gl,
-            useWebGL2 ? vs2 : vs,
-            useWebGL2 ? fs2 : fs);
+        this.program = glview.isWebGL2(gl) ? glview.createProgram(gl, vs2, fs2) : glview.createProgram(gl, vs, fs);
         this.atrPosition = gl.getAttribLocation(this.program, "position");
         this.atrNormal = gl.getAttribLocation(this.program, "normal");
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;

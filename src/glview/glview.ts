@@ -154,6 +154,10 @@ export class GLView {
     }
 }
 
+export function isWebGL2(gl: WebGLRenderingContext): boolean {
+    return (gl.getParameter(gl.VERSION) as string).startsWith("WebGL 2.0");
+}
+
 export function buildShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
     const shader = gl.createShader(type);
     if (shader == null) throw new Error("shader is null");
