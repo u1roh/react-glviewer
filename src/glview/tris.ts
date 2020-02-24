@@ -104,8 +104,8 @@ class TrianglesDrawerProgram {
     draw(camera: glview.Camera, points: WebGLBuffer, normals: WebGLBuffer, count: number) {
         const gl = this.gl;
         gl.useProgram(this.program);
-        gl.uniformMatrix4fv(this.uniModelViewMatrix, false, camera.modelViewMatrix);
-        gl.uniformMatrix4fv(this.uniProjMatrix, false, camera.projectionMatrix);
+        camera.glModelViewMatrix().glUniform(gl, this.uniModelViewMatrix);
+        camera.glProjectionMatrix().glUniform(gl, this.uniProjMatrix);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, points);
         gl.enableVertexAttribArray(this.atrPosition);

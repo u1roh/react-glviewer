@@ -1,5 +1,31 @@
 import * as vec from './vecmath';
 
+/*
+class Stack<T> {
+    private a = new Array<T>();
+    public push(x: T) { this.a.push(x); }
+    public pop(): T | undefined { return this.a.pop(); }
+}
+
+interface RenderingContext {
+    gl(): WebGLRenderingContext;
+    canvas(): HTMLCanvasElement;
+}
+
+interface World3DRenderingContext extends RenderingContext {
+    projectionMatrix(): GLUniform;
+    modelviewMatrix(): GLUniform;
+}
+
+interface Node {
+    render(): void;
+}
+*/
+
+interface GLUniform {
+    glUniform(gl: WebGLRenderingContext, location: WebGLUniformLocation): void;
+}
+
 export class Camera {
     private static orthoMatrix(volume: vec.Box3) {
         const c = volume.center();
@@ -26,8 +52,8 @@ export class Camera {
 
     focus: vec.RigidTrans;
     scale: number;
-    modelViewMatrix: number[];
-    projectionMatrix: number[];
+    private modelViewMatrix: number[];
+    private projectionMatrix: number[];
     constructor(focus: vec.RigidTrans, scale: number) {
         this.focus = focus;
         this.scale = scale;
@@ -43,6 +69,12 @@ export class Camera {
             0, 0, 1, 0,
             0, 0, 0, 1
         ];
+    }
+    glModelViewMatrix(): GLUniform {
+        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.modelViewMatrix) };
+    }
+    glProjectionMatrix(): GLUniform {
+        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.projectionMatrix) };
     }
     fit(world: vec.Sphere) {
         this.focus.t = world.center;
