@@ -17,8 +17,26 @@ interface World3DRenderingContext extends RenderingContext {
     modelviewMatrix(): GLUniform;
 }
 
-interface Node {
+interface INode {
     render(): void;
+}
+
+
+class Node {
+    private matrix: number[] = [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    ];
+    render(con: RenderingContext) {
+        con.pushMatrix(this.matrix);
+
+    }
+}
+
+class WorldNode {
+
 }
 */
 
@@ -27,19 +45,19 @@ interface GLUniform {
 }
 
 export class Camera {
-    private static orthoMatrix(volume: vec.Box3) {
+    private static orthoMatrix(volume: vec.Box3): vec.Matrix4 {
         const c = volume.center();
         const w = volume.x.upper - c.x;
         const h = volume.y.upper - c.y;
         const d = volume.z.upper - c.z;
-        return [
+        return new vec.Matrix4([
             1 / w, 0, 0, 0,
             0, 1 / h, 0, 0,
             0, 0, 1 / d, 0,
             -c.x / w, -c.y / w, -c.z / d, 1
-        ];
+        ]);
     }
-    private static makeProjMatrix(depth: vec.Interval, scale: number, canvasWidth: number, canvasHeight: number) {
+    private static makeProjMatrix(depth: vec.Interval, scale: number, canvasWidth: number, canvasHeight: number): vec.Matrix4 {
         const [w, h] = (canvasWidth < canvasHeight) ?
             [scale, scale * canvasHeight / canvasWidth] :
             [scale * canvasWidth / canvasHeight, scale];
@@ -52,29 +70,19 @@ export class Camera {
 
     focus: vec.RigidTrans;
     scale: number;
-    private modelViewMatrix: number[];
-    private projectionMatrix: number[];
+    private modelViewMatrix: vec.Matrix4;
+    private projectionMatrix: vec.Matrix4;
     constructor(focus: vec.RigidTrans, scale: number) {
         this.focus = focus;
         this.scale = scale;
-        this.modelViewMatrix = [
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ];
-        this.projectionMatrix = [
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ];
+        this.modelViewMatrix = vec.Matrix4.unit();
+        this.projectionMatrix = vec.Matrix4.unit();
     }
     glModelViewMatrix(): GLUniform {
-        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.modelViewMatrix) };
+        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.modelViewMatrix.array()) };
     }
     glProjectionMatrix(): GLUniform {
-        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.projectionMatrix) };
+        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.projectionMatrix.array()) };
     }
     fit(world: vec.Sphere) {
         this.focus.t = world.center;

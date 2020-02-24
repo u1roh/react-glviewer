@@ -37,6 +37,44 @@ export class Vec3 {
     }
 }
 
+export class Matrix4 {
+    private a: number[];
+    constructor(a: number[]) {
+        if (a.length != 16) throw new Error("Matrix4: a.length != 16");
+        this.a = a;
+    }
+    static zero() {
+        return new Matrix4([
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0
+        ]);
+    }
+    static unit() {
+        return new Matrix4([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+    }
+    array(): number[] {
+        return this.a;
+    }
+    mul(m: Matrix4): Matrix4 {
+        const c = new Array<number>(16);
+        for (let i = 0; i < 4; ++i) {
+            for (let j = 0; j < 4; ++j) {
+                for (let k = 0; k < 4; ++k) {
+                    c[i + 4 * j] += this.a[i + 4 * k] * m.a[4 * j + k];
+                }
+            }
+        }
+        return new Matrix4(c);
+    }
+}
+
 export class Sphere {
     center: Vec3;
     radius: number;
@@ -161,7 +199,7 @@ export class Rotation {
     mul(r: Rotation): Rotation {
         return new Rotation(this.q.mul(r.q));
     }
-    toMatrix(): number[] {
+    toMatrix(): Matrix4 {
         const q = this.q;
 
         const ww = q.w * q.w;
@@ -177,12 +215,12 @@ export class Rotation {
         const yz = q.y * q.z;
         const zx = q.z * q.x;
 
-        return [
+        return new Matrix4([
             ww + xx - yy - zz, 2 * (xy + wz), 2 * (zx - wy), 0,
             2 * (xy - wz), ww - xx + yy - zz, 2 * (yz + wx), 0,
             2 * (zx + wy), 2 * (yz - wx), ww - xx - yy + zz, 0,
             0, 0, 0, 1
-        ];
+        ]);
     }
 }
 
@@ -207,11 +245,11 @@ export class RigidTrans {
         const v = r.transform(this.t).neg();
         return new RigidTrans(r, v);
     }
-    toMatrix(): number[] {
+    toMatrix(): Matrix4 {
         let mat = this.r.toMatrix();
-        mat[12] = this.t.x;
-        mat[13] = this.t.y;
-        mat[14] = this.t.z;
+        mat.array()[12] = this.t.x;
+        mat.array()[13] = this.t.y;
+        mat.array()[14] = this.t.z;
         return mat;
     }
 }
