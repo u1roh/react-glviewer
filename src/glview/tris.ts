@@ -101,11 +101,12 @@ class TrianglesDrawerProgram {
         this.gl.bufferData(this.gl.ARRAY_BUFFER, data, this.gl.STATIC_DRAW);
         return buf!;
     }
-    draw(camera: glview.Camera, points: WebGLBuffer, normals: WebGLBuffer, count: number) {
-        const gl = this.gl;
+    draw(rc: glview.RenderingContext, points: WebGLBuffer, normals: WebGLBuffer, count: number) {
+        if (rc.gl != this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        const gl = rc.gl;
         gl.useProgram(this.program);
-        camera.glModelViewMatrix().glUniform(gl, this.uniModelViewMatrix);
-        camera.glProjectionMatrix().glUniform(gl, this.uniProjMatrix);
+        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
+        rc.glUniformProjectionMatrix(this.uniProjMatrix);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, points);
         gl.enableVertexAttribArray(this.atrPosition);
@@ -133,8 +134,8 @@ export class TrianglesDrawer implements glview.Drawable {
         this.normals = program.createBuffer(normals);
         this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
     }
-    draw(camera: glview.Camera) {
-        this.program.draw(camera, this.points, this.normals, this.count);
+    draw(rc: glview.RenderingContext) {
+        this.program.draw(rc, this.points, this.normals, this.count);
     }
     boundingSphere(): vec.Sphere {
         return this.boundary;

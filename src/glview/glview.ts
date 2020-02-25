@@ -1,47 +1,12 @@
 import * as vec from './vecmath';
 
-/*
-class Stack<T> {
-    private a = new Array<T>();
-    public push(x: T) { this.a.push(x); }
-    public pop(): T | undefined { return this.a.pop(); }
-}
-
-interface RenderingContext {
-    gl(): WebGLRenderingContext;
-    canvas(): HTMLCanvasElement;
-}
-
-interface World3DRenderingContext extends RenderingContext {
-    projectionMatrix(): GLUniform;
-    modelviewMatrix(): GLUniform;
-}
-
-interface INode {
-    render(): void;
-}
-
-
-class Node {
-    private matrix: number[] = [
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    ];
-    render(con: RenderingContext) {
-        con.pushMatrix(this.matrix);
-
-    }
-}
-
-class WorldNode {
-
-}
-*/
-
-interface GLUniform {
-    glUniform(gl: WebGLRenderingContext, location: WebGLUniformLocation): void;
+export interface RenderingContext {
+    gl: WebGLRenderingContext;
+    canvasWidth: number;
+    canvasHeight: number;
+    camera: Camera;
+    glUniformProjectionMatrix(location: WebGLUniformLocation): void;
+    glUniformModelViewMatrix(location: WebGLUniformLocation): void;
 }
 
 export class Camera {
@@ -70,35 +35,26 @@ export class Camera {
 
     focus: vec.RigidTrans;
     scale: number;
-    private modelViewMatrix: vec.Matrix4;
-    private projectionMatrix: vec.Matrix4;
     constructor(focus: vec.RigidTrans, scale: number) {
         this.focus = focus;
         this.scale = scale;
-        this.modelViewMatrix = vec.Matrix4.unit();
-        this.projectionMatrix = vec.Matrix4.unit();
-    }
-    glModelViewMatrix(): GLUniform {
-        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.modelViewMatrix.array()) };
-    }
-    glProjectionMatrix(): GLUniform {
-        return { glUniform: (gl, location) => gl.uniformMatrix4fv(location, false, this.projectionMatrix.array()) };
     }
     fit(world: vec.Sphere) {
         this.focus.t = world.center;
         this.scale = world.radius;
     }
-    update(world: vec.Sphere, canvasWidth: number, canvasHeight: number) {
+    createMatrix(world: vec.Sphere, canvasWidth: number, canvasHeight: number): [vec.Matrix4, vec.Matrix4] {
         const inv = this.focus.inverse();
-        const center = inv.transform(world.center);
-        const depth = new vec.Interval(center.z - world.radius, center.z + world.radius);
-        this.modelViewMatrix = inv.toMatrix();
-        this.projectionMatrix = Camera.makeProjMatrix(depth, this.scale, canvasWidth, canvasHeight);
+        const centerZ = inv.transform(world.center).z;
+        const projMatrix = Camera.makeProjMatrix(
+            new vec.Interval(centerZ - world.radius, centerZ + world.radius),
+            this.scale, canvasWidth, canvasHeight);
+        return [projMatrix, inv.toMatrix()]
     }
 }
 
 export interface Drawable {
-    draw(camera: Camera): void;
+    draw(rc: RenderingContext): void;
     boundingSphere(): vec.Sphere;
 }
 
@@ -173,9 +129,20 @@ export class GLView {
     }
     render() {
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-        this.camera.update(this.world, this.canvas.width, this.canvas.height);
         if (this.scene != null) {
-            this.scene.draw(this.camera);
+            const rc = this.createContext();
+            this.scene.draw(rc);
+        }
+    }
+    private createContext(): RenderingContext {
+        const [projMatrix, viewMatrix] = this.camera.createMatrix(this.world, this.canvas.width, this.canvas.height);
+        return {
+            gl: this.gl,
+            canvasWidth: this.canvas.width,
+            canvasHeight: this.canvas.height,
+            camera: this.camera,
+            glUniformProjectionMatrix: location => this.gl.uniformMatrix4fv(location, false, projMatrix.array()),
+            glUniformModelViewMatrix: location => this.gl.uniformMatrix4fv(location, false, viewMatrix.array())
         }
     }
     lengthPerPixel() {
