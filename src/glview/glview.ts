@@ -73,7 +73,8 @@ export class GLView {
         this.canvas = canvas;
         this.gl = gl;
 
-        gl.clearColor(0.3, 0.3, 0.3, 1);
+        //gl.clearColor(0.3, 0.3, 0.3, 1);
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
 
         // Projection Matrix で視線方向を反転させていないので（つまり右手系のままなので）、
         // 通常の OpenGL と違ってデプス値はゼロで初期化して depthFunc を GL_GREATER にする。
@@ -133,6 +134,45 @@ export class GLView {
             const rc = this.createContext();
             this.scene.draw(rc);
         }
+    }
+    renderOffscreen() {
+        const gl = this.gl;
+        const fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+
+        const depthBuf = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuf);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.width, this.canvas.height);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuf);
+
+        /*
+        const colorBuf = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, colorBuf);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, this.canvas.width, this.canvas.height);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorBuf);
+        */
+        const colorBuf = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, colorBuf);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.canvas.width, this.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorBuf, 0);
+
+        this.render();
+        gl.flush();
+
+        let pixels = new Uint8Array(this.canvas.width * this.canvas.height * 4);
+        gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        for (let i = 0; i < this.canvas.height; i += 16) {
+            let line = "";
+            for (let j = 0; j < this.canvas.width; j += 16) {
+                let r = pixels[4 * (j + this.canvas.width * i) + 0];
+                let g = pixels[4 * (j + this.canvas.width * i) + 1];
+                let b = pixels[4 * (j + this.canvas.width * i) + 2];
+                line += (r + g + b === 0) ? ' ' : '*';
+            }
+            console.log(line);
+        }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     private createContext(): RenderingContext {
         const [projMatrix, viewMatrix] = this.camera.createMatrix(this.world, this.canvas.width, this.canvas.height);

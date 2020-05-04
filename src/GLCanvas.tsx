@@ -45,11 +45,10 @@ export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSou
             view.current.setScene(props.scene);
             view.current.fit();
             view.current.render();
+            view.current.renderOffscreen();
         }
     }, [props.scene]);
     return (
-        <div>
-            <canvas ref={canvas} width="600" height="400" >WebGL 2.0 must be supported.</canvas>
-        </div>
+        <canvas ref={canvas} width="600" height="400" >WebGL 2.0 must be supported.</canvas>
     );
 }
