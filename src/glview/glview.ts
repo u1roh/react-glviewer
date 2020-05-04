@@ -1,5 +1,11 @@
 import * as vec from './vecmath';
 
+export interface Color3 {
+    r: number;
+    g: number;
+    b: number;
+}
+
 export interface RenderingContext {
     gl: WebGLRenderingContext;
     canvasWidth: number;

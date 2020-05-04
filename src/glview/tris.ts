@@ -70,36 +70,37 @@ void main(){
 }
 `;
 
-class TrianglesDrawerProgram {
-    private static registry = new Map<WebGLRenderingContext, TrianglesDrawerProgram>();
-    static get(gl: WebGLRenderingContext) {
-        let instance = this.registry.get(gl);
-        if (instance === undefined) {
-            instance = new TrianglesDrawerProgram(gl);
-            this.registry.set(gl, instance);
-        }
-        return instance;
-    }
+const no_shading_vs = `
+attribute vec4 position;
+uniform mat4 modelViewMatrix;
+uniform mat4 projMatrix;
+void main() {
+    gl_Position = projMatrix * modelViewMatrix * position;
+}
+`;
 
+const no_shading_fs = `
+precision mediump float;
+uniform vec3 color;
+void main(){
+    gl_FragColor = vec4(color, 1);
+}
+`;
+
+class TrianglesShadingProgram {
     private gl: WebGLRenderingContext;
     private program: WebGLProgram;
     private atrPosition: number;
     private atrNormal: number;
     private uniModelViewMatrix: WebGLUniformLocation;
     private uniProjMatrix: WebGLUniformLocation;
-    private constructor(gl: WebGLRenderingContext) {
+    constructor(gl: WebGLRenderingContext) {
         this.gl = gl;
         this.program = glview.isWebGL2(gl) ? glview.createProgram(gl, vs2, fs2) : glview.createProgram(gl, vs, fs);
         this.atrPosition = gl.getAttribLocation(this.program, "position");
         this.atrNormal = gl.getAttribLocation(this.program, "normal");
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
-    }
-    createBuffer(data: Float32Array): WebGLBuffer {
-        const buf = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buf);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, data, this.gl.STATIC_DRAW);
-        return buf!;
     }
     draw(rc: glview.RenderingContext, points: WebGLBuffer, normals: WebGLBuffer, count: number) {
         if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
@@ -120,22 +121,80 @@ class TrianglesDrawerProgram {
     }
 }
 
+class TrianglesNoShadingProgram {
+    private gl: WebGLRenderingContext;
+    private program: WebGLProgram;
+    private atrPosition: number;
+    private uniModelViewMatrix: WebGLUniformLocation;
+    private uniProjMatrix: WebGLUniformLocation;
+    private uniColor: WebGLUniformLocation;
+    constructor(gl: WebGLRenderingContext) {
+        this.gl = gl;
+        this.program = glview.createProgram(gl, no_shading_vs, no_shading_fs);
+        this.atrPosition = gl.getAttribLocation(this.program, "position");
+        this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
+        this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
+        this.uniColor = gl.getUniformLocation(this.program, "color")!;
+    }
+    draw(rc: glview.RenderingContext, points: WebGLBuffer, count: number, color: glview.Color3) {
+        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        const gl = rc.gl;
+        gl.useProgram(this.program);
+        gl.uniform3f(this.uniColor, color.r, color.g, color.b);
+        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
+        rc.glUniformProjectionMatrix(this.uniProjMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, points);
+        gl.enableVertexAttribArray(this.atrPosition);
+        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.TRIANGLES, 0, count);
+    }
+}
+
+class TrianglesDrawerPrograms {
+    private static registry = new Map<WebGLRenderingContext, TrianglesDrawerPrograms>();
+    static get(gl: WebGLRenderingContext) {
+        let instance = this.registry.get(gl);
+        if (instance === undefined) {
+            instance = new TrianglesDrawerPrograms(gl);
+            this.registry.set(gl, instance);
+        }
+        return instance;
+    }
+    private gl: WebGLRenderingContext;
+    shading: TrianglesShadingProgram;
+    noShading: TrianglesNoShadingProgram;
+    private constructor(gl: WebGLRenderingContext) {
+        this.gl = gl;
+        this.shading = new TrianglesShadingProgram(gl);
+        this.noShading = new TrianglesNoShadingProgram(gl);
+    }
+    createBuffer(data: Float32Array): WebGLBuffer {
+        const buf = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buf);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, data, this.gl.STATIC_DRAW);
+        return buf!;
+    }
+}
+
 export class TrianglesDrawer implements glview.Drawable {
-    private program: TrianglesDrawerProgram;
+    private programs: TrianglesDrawerPrograms;
     private count: number;
     private points: WebGLBuffer;
     private normals: WebGLBuffer;
     private boundary: vec.Sphere;
-    constructor(program: TrianglesDrawerProgram, points: Float32Array, normals: Float32Array) {
+    constructor(programs: TrianglesDrawerPrograms, points: Float32Array, normals: Float32Array) {
         if (points.length !== normals.length) throw new Error("points.length != normals.length");
-        this.program = program;
+        this.programs = programs;
         this.count = points.length / 3;
-        this.points = program.createBuffer(points);
-        this.normals = program.createBuffer(normals);
+        this.points = programs.createBuffer(points);
+        this.normals = programs.createBuffer(normals);
         this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
     }
     draw(rc: glview.RenderingContext) {
-        this.program.draw(rc, this.points, this.normals, this.count);
+        this.programs.shading.draw(rc, this.points, this.normals, this.count);
+        //this.programs.noShading.draw(rc, this.points, this.count, { r: 1, g: 0, b: 0 });
     }
     boundingSphere(): vec.Sphere {
         return this.boundary;
@@ -150,6 +209,6 @@ export class Triangles implements glview.DrawableSource {
         this.normals = normals;
     }
     createDrawer(gl: WebGLRenderingContext) {
-        return new TrianglesDrawer(TrianglesDrawerProgram.get(gl), this.points, this.normals);
+        return new TrianglesDrawer(TrianglesDrawerPrograms.get(gl), this.points, this.normals);
     }
 }
