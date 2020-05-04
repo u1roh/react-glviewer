@@ -102,7 +102,7 @@ class TrianglesDrawerProgram {
         return buf!;
     }
     draw(rc: glview.RenderingContext, points: WebGLBuffer, normals: WebGLBuffer, count: number) {
-        if (rc.gl != this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);

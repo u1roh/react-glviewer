@@ -40,7 +40,7 @@ export class Vec3 {
 export class Matrix4 {
     private a: number[];
     constructor(a: number[]) {
-        if (a.length != 16) throw new Error("Matrix4: a.length != 16");
+        if (a.length !== 16) throw new Error("Matrix4: a.length != 16");
         this.a = a;
     }
     static zero() {
