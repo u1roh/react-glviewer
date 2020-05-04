@@ -60,24 +60,69 @@ export class Camera {
 }
 
 export interface Drawable {
+    gl(): WebGLRenderingContext;
     draw(rc: RenderingContext): void;
-    boundingSphere(): vec.Sphere;
+    drawForSelection(rc: RenderingContext, color: Color3): void;
 }
 
 export interface DrawableSource {
-    createDrawer(gl: WebGLRenderingContext): Drawable;
+    getDrawer(gl: WebGLRenderingContext): Drawable;
+    boundingSphere(): vec.Sphere;
+}
+
+class DrawableList implements Drawable {
+    private _gl: WebGLRenderingContext;
+    items: Drawable[];
+    constructor(gl: WebGLRenderingContext, items: Drawable[] = []) {
+        this._gl = gl;
+        this.items = items;
+    }
+    gl() {
+        return this._gl;
+    }
+    draw(rc: RenderingContext) {
+        for (let x of this.items) x.draw(rc);
+    }
+    drawForSelection(rc: RenderingContext, color: Color3) {
+        for (let x of this.items) x.drawForSelection(rc, color);
+    }
+}
+
+export class SceneGraph implements DrawableSource {
+    private nodes: (DrawableSource | SceneGraph)[] = [];
+    private world: vec.Sphere | null = null;
+    private drawer: DrawableList | null = null;
+    getDrawer(gl: WebGLRenderingContext): Drawable {
+        if (this.drawer === null) {
+            this.drawer = new DrawableList(gl, this.nodes.map(x => x.getDrawer(gl)));
+        }
+        return this.drawer;
+    }
+    boundingSphere(): vec.Sphere {
+        if (this.world === null) {
+            // FIXME: nodes の bouningSphere() を集めた Sphere を作る
+            this.world = this.nodes.length > 0 ? this.nodes[0].boundingSphere() :
+                new vec.Sphere(vec.Vec3.zero(), 1.0);
+        }
+        return this.world;
+    }
+    addNode(node: DrawableSource | SceneGraph) {
+        this.nodes.push(node);
+        this.world = null;
+        this.drawer = null;
+    }
 }
 
 export class GLView {
     canvas: HTMLCanvasElement;
     gl: WebGLRenderingContext;
     camera = new Camera(vec.RigidTrans.unit(), 1.0);
-    scene: Drawable | null = null;
-    world: vec.Sphere = new vec.Sphere(vec.Vec3.zero(), 1.0);
-    constructor(canvas: HTMLCanvasElement, useWebGL2: boolean) {
+    sceneGraph: SceneGraph;
+    constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph) {
         const gl = canvas.getContext(useWebGL2 ? "webgl2" : "webgl") as WebGLRenderingContext;
         this.canvas = canvas;
         this.gl = gl;
+        this.sceneGraph = sceneGraph;
 
         //gl.clearColor(0.3, 0.3, 0.3, 1);
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
@@ -127,19 +172,13 @@ export class GLView {
             this.render();
         });
     }
-    setScene(source: DrawableSource) {
-        this.scene = source.createDrawer(this.gl);
-        this.world = this.scene.boundingSphere();
-    }
     fit() {
-        this.camera.fit(this.world);
+        this.camera.fit(this.sceneGraph.boundingSphere());
     }
     render() {
+        const rc = this.createContext();
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-        if (this.scene != null) {
-            const rc = this.createContext();
-            this.scene.draw(rc);
-        }
+        this.sceneGraph.getDrawer(this.gl).draw(rc);
     }
     renderOffscreen() {
         const gl = this.gl;
@@ -181,7 +220,8 @@ export class GLView {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     private createContext(): RenderingContext {
-        const [projMatrix, viewMatrix] = this.camera.createMatrix(this.world, this.canvas.width, this.canvas.height);
+        const [projMatrix, viewMatrix] = this.camera.createMatrix(
+            this.sceneGraph.boundingSphere(), this.canvas.width, this.canvas.height);
         return {
             gl: this.gl,
             canvasWidth: this.canvas.width,

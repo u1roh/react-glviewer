@@ -162,7 +162,7 @@ class TrianglesDrawerPrograms {
         }
         return instance;
     }
-    private gl: WebGLRenderingContext;
+    gl: WebGLRenderingContext;
     shading: TrianglesShadingProgram;
     noShading: TrianglesNoShadingProgram;
     private constructor(gl: WebGLRenderingContext) {
@@ -178,37 +178,49 @@ class TrianglesDrawerPrograms {
     }
 }
 
-export class TrianglesDrawer implements glview.Drawable {
+class TrianglesDrawer implements glview.Drawable {
     private programs: TrianglesDrawerPrograms;
     private count: number;
     private points: WebGLBuffer;
     private normals: WebGLBuffer;
-    private boundary: vec.Sphere;
     constructor(programs: TrianglesDrawerPrograms, points: Float32Array, normals: Float32Array) {
         if (points.length !== normals.length) throw new Error("points.length != normals.length");
         this.programs = programs;
         this.count = points.length / 3;
         this.points = programs.createBuffer(points);
         this.normals = programs.createBuffer(normals);
-        this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
+    }
+    gl() {
+        return this.programs.gl;
     }
     draw(rc: glview.RenderingContext) {
         this.programs.shading.draw(rc, this.points, this.normals, this.count);
-        //this.programs.noShading.draw(rc, this.points, this.count, { r: 1, g: 0, b: 0 });
     }
-    boundingSphere(): vec.Sphere {
-        return this.boundary;
+    drawForSelection(rc: glview.RenderingContext, color: glview.Color3) {
+        this.programs.noShading.draw(rc, this.points, this.count, color);
     }
 }
 
 export class Triangles implements glview.DrawableSource {
+    private drawers: TrianglesDrawer[];
     private points: Float32Array;
     private normals: Float32Array;
+    private boundary: vec.Sphere;
     constructor(points: Float32Array, normals: Float32Array) {
         this.points = points;
         this.normals = normals;
+        this.drawers = [];
+        this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
     }
-    createDrawer(gl: WebGLRenderingContext) {
-        return new TrianglesDrawer(TrianglesDrawerPrograms.get(gl), this.points, this.normals);
+    getDrawer(gl: WebGLRenderingContext) {
+        let drawer = this.drawers.find(drawer => drawer.gl() === gl);
+        if (drawer === undefined) {
+            drawer = new TrianglesDrawer(TrianglesDrawerPrograms.get(gl), this.points, this.normals);
+            this.drawers.push(drawer);
+        }
+        return drawer
+    }
+    boundingSphere(): vec.Sphere {
+        return this.boundary;
     }
 }
