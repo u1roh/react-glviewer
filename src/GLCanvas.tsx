@@ -1,18 +1,14 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import './App.css';
 import * as glview from './glview/glview';
 import { STLFormat } from './glview/stl';
 
 
-interface GLCanvasProps {
-    useWebGL2: boolean
-}
-
-class GLCanvas extends React.PureComponent<GLCanvasProps> {
+export class GLCanvas extends React.PureComponent<{ useWebGL2: boolean }> {
     view: glview.GLView | null = null;
     private canvas: React.RefObject<HTMLCanvasElement>;
-    constructor(props: GLCanvasProps) {
+    constructor(props: { useWebGL2: boolean }) {
         super(props);
         this.canvas = React.createRef();
     }
@@ -36,4 +32,24 @@ class GLCanvas extends React.PureComponent<GLCanvasProps> {
     }
 }
 
-export default GLCanvas;
+export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSource | null }) {
+    let view = useRef<glview.GLView | null>(null);
+    const canvas = useRef<HTMLCanvasElement>(null);
+    useEffect(() => {
+        if (canvas.current != null) {
+            view.current = new glview.GLView(canvas.current, props.useWebGL2);
+        }
+    }, [canvas, props.useWebGL2]);
+    useEffect(() => {
+        if (view.current != null && props.scene != null) {
+            view.current.setScene(props.scene);
+            view.current.fit();
+            view.current.render();
+        }
+    }, [props.scene]);
+    return (
+        <div>
+            <canvas ref={canvas} width="600" height="400" >WebGL 2.0 must be supported.</canvas>
+        </div>
+    );
+}
