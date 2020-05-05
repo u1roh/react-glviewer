@@ -99,17 +99,16 @@ export class SelectionSession {
 
 class SelectionBuffer {
     private readonly gl: WebGLRenderingContext;
-    private readonly render: (session: SelectionSession) => void;
+    private readonly renderFunc: (session: SelectionSession) => void;
     private readonly fb: WebGLFramebuffer | null;
     private readonly depthBuf: WebGLRenderbuffer | null;
     private readonly colorBuf: WebGLTexture | null;
     private canvasWidth: number = -1;
     private canvasHeight: number = -1;
     private session: SelectionSession | null = null;
-
-    constructor(gl: WebGLRenderingContext, render: (session: SelectionSession) => void) {
+    constructor(gl: WebGLRenderingContext, renderFunc: (session: SelectionSession) => void) {
         this.gl = gl;
-        this.render = render;
+        this.renderFunc = renderFunc;
         this.fb = gl.createFramebuffer();
         this.depthBuf = gl.createRenderbuffer();
         this.colorBuf = gl.createTexture();
@@ -153,21 +152,27 @@ class SelectionBuffer {
             gl.bindTexture(gl.TEXTURE_2D, this.colorBuf);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
             gl.bindTexture(gl.TEXTURE_2D, null);
+
+            gl.viewport(0, 0, width, height);
         }
         if (this.session === null) {
             console.log("render for selection");
-            this.session = new SelectionSession();
-            gl.clearColor(0.0, 0.0, 0.0, 0.0);
-            gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-            this.render(this.session);
-            gl.flush();
+            this.session = this.render();
         }
-        let pixels = new Uint8Array(4);
-        gl.readPixels(x, this.canvasHeight - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        let pixels = new Uint8Array(3);
+        gl.readPixels(x, this.canvasHeight - y, 1, 1, gl.RGB, gl.UNSIGNED_BYTE, pixels);
         let color = new Color3(pixels[0], pixels[1], pixels[2]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         return this.session.getObject(color);
+    }
+    render() {
+        const session = new SelectionSession();
+        this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        this.renderFunc(session);
+        this.gl.flush();
+        return session;
     }
 }
 
@@ -287,7 +292,7 @@ export class GLView {
         });
         canvas.addEventListener("mousedown", e => {
             if (e.button !== 0) return;
-            const obj = this.selectionBuf.select(e.offsetY, e.offsetY, this.canvas.width, this.canvas.height);
+            const obj = this.selectionBuf.select(e.offsetX, e.offsetY, this.canvas.width, this.canvas.height);
             console.log(obj);
         });
     }
@@ -300,6 +305,7 @@ export class GLView {
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.sceneGraph.getDrawer(this.gl).draw(rc);
         this.selectionBuf.clearSession();
+        //this.selectionBuf.render(); // for debug
     }
     private createContext(): RenderingContext {
         const [projMatrix, viewMatrix] = this.camera.createMatrix(

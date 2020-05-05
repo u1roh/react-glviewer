@@ -53,6 +53,6 @@ export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSou
         }
     }, [props.scene]);
     return (
-        <canvas ref={canvas} width="600" height="400" >WebGL 2.0 must be supported.</canvas>
+        <canvas ref={canvas} width="600" height="400" style={{ borderStyle: "solid" }}>WebGL 2.0 must be supported.</canvas>
     );
 }
