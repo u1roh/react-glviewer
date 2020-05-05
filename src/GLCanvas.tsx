@@ -50,7 +50,6 @@ export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSou
             sceneGraph.current.addNode(props.scene);
             view.current.fit();
             view.current.render();
-            view.current.renderOffscreen();
         }
     }, [props.scene]);
     return (

@@ -59,10 +59,30 @@ export class Camera {
     }
 }
 
+export class SelectionSession {
+    private objects: object[] = [];
+    emitColor(obj: any): Color3 {
+        this.objects.push(obj);
+        return SelectionSession.encodeToColor(this.objects.length);
+    }
+    getObject(color: Color3): object | null {
+        const i = SelectionSession.decodeFromColor(color);
+        return 0 < i && i <= this.objects.length ? this.objects[i - 1] : null;
+    }
+    private static encodeToColor(n: number): Color3 {
+        // FIXME: not implemented
+        return { r: 1, g: 0, b: 0 };
+    }
+    private static decodeFromColor(c: Color3): number {
+        // FIXME: not implemented
+        return c.r == 0 ? 0 : 1;
+    }
+}
+
 export interface Drawable {
     gl(): WebGLRenderingContext;
     draw(rc: RenderingContext): void;
-    drawForSelection(rc: RenderingContext, color: Color3): void;
+    drawForSelection(rc: RenderingContext, session: SelectionSession): void;
 }
 
 export interface DrawableSource {
@@ -83,13 +103,13 @@ class DrawableList implements Drawable {
     draw(rc: RenderingContext) {
         for (let x of this.items) x.draw(rc);
     }
-    drawForSelection(rc: RenderingContext, color: Color3) {
-        for (let x of this.items) x.drawForSelection(rc, color);
+    drawForSelection(rc: RenderingContext, session: SelectionSession) {
+        for (let x of this.items) x.drawForSelection(rc, session);
     }
 }
 
 export class SceneGraph implements DrawableSource {
-    private nodes: (DrawableSource | SceneGraph)[] = [];
+    private nodes: DrawableSource[] = [];
     private world: vec.Sphere | null = null;
     private drawer: DrawableList | null = null;
     getDrawer(gl: WebGLRenderingContext): Drawable {
@@ -124,8 +144,6 @@ export class GLView {
         this.gl = gl;
         this.sceneGraph = sceneGraph;
 
-        //gl.clearColor(0.3, 0.3, 0.3, 1);
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
 
         // Projection Matrix で視線方向を反転させていないので（つまり右手系のままなので）、
         // 通常の OpenGL と違ってデプス値はゼロで初期化して depthFunc を GL_GREATER にする。
@@ -135,6 +153,7 @@ export class GLView {
 
         canvas.oncontextmenu = function () { return false; };    // disable context menu
         canvas.addEventListener("mousedown", e => {
+            if (e.button !== 2) return;
             const scale = this.camera.scale;
             const focus = this.camera.focus.clone();
             const lengthPerPixel = this.lengthPerPixel();
@@ -171,16 +190,22 @@ export class GLView {
             this.camera.scale *= factor;
             this.render();
         });
+        canvas.addEventListener("mousedown", e => {
+            if (e.button !== 0) return;
+            const obj = this.select(e.offsetX, e.offsetY);
+            console.log(obj);
+        });
     }
     fit() {
         this.camera.fit(this.sceneGraph.boundingSphere());
     }
     render() {
         const rc = this.createContext();
+        this.gl.clearColor(0.3, 0.3, 0.3, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.sceneGraph.getDrawer(this.gl).draw(rc);
     }
-    renderOffscreen() {
+    select(x: number, y: number) {
         const gl = this.gl;
         const fb = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
@@ -190,34 +215,24 @@ export class GLView {
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.width, this.canvas.height);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuf);
 
-        /*
         const colorBuf = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, colorBuf);
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, this.canvas.width, this.canvas.height);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorBuf);
-        */
-        const colorBuf = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, colorBuf);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.canvas.width, this.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorBuf, 0);
 
-        this.render();
+        const session = new SelectionSession();
+        const rc = this.createContext();
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        this.sceneGraph.getDrawer(this.gl).drawForSelection(rc, session);
         gl.flush();
 
-        let pixels = new Uint8Array(this.canvas.width * this.canvas.height * 4);
-        gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-        for (let i = 0; i < this.canvas.height; i += 16) {
-            let line = "";
-            for (let j = 0; j < this.canvas.width; j += 16) {
-                let r = pixels[4 * (j + this.canvas.width * i) + 0];
-                let g = pixels[4 * (j + this.canvas.width * i) + 1];
-                let b = pixels[4 * (j + this.canvas.width * i) + 2];
-                line += (r + g + b === 0) ? ' ' : '*';
-            }
-            console.log(line);
-        }
-
+        let pixels = new Uint8Array(4);
+        gl.readPixels(x, this.canvas.height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        let color = { r: pixels[0], g: pixels[1], b: pixels[2] };
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        return session.getObject(color);
     }
     private createContext(): RenderingContext {
         const [projMatrix, viewMatrix] = this.camera.createMatrix(

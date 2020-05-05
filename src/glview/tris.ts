@@ -183,12 +183,14 @@ class TrianglesDrawer implements glview.Drawable {
     private count: number;
     private points: WebGLBuffer;
     private normals: WebGLBuffer;
-    constructor(programs: TrianglesDrawerPrograms, points: Float32Array, normals: Float32Array) {
+    private entity: object;
+    constructor(programs: TrianglesDrawerPrograms, points: Float32Array, normals: Float32Array, entity: object) {
         if (points.length !== normals.length) throw new Error("points.length != normals.length");
         this.programs = programs;
         this.count = points.length / 3;
         this.points = programs.createBuffer(points);
         this.normals = programs.createBuffer(normals);
+        this.entity = entity;
     }
     gl() {
         return this.programs.gl;
@@ -196,8 +198,8 @@ class TrianglesDrawer implements glview.Drawable {
     draw(rc: glview.RenderingContext) {
         this.programs.shading.draw(rc, this.points, this.normals, this.count);
     }
-    drawForSelection(rc: glview.RenderingContext, color: glview.Color3) {
-        this.programs.noShading.draw(rc, this.points, this.count, color);
+    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
+        this.programs.noShading.draw(rc, this.points, this.count, session.emitColor(this.entity));
     }
 }
 
@@ -206,16 +208,18 @@ export class Triangles implements glview.DrawableSource {
     private points: Float32Array;
     private normals: Float32Array;
     private boundary: vec.Sphere;
-    constructor(points: Float32Array, normals: Float32Array) {
+    private entity: object;
+    constructor(points: Float32Array, normals: Float32Array, entity: object | null = null) {
         this.points = points;
         this.normals = normals;
         this.drawers = [];
         this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
+        this.entity = entity === null ? this : entity;
     }
     getDrawer(gl: WebGLRenderingContext) {
         let drawer = this.drawers.find(drawer => drawer.gl() === gl);
         if (drawer === undefined) {
-            drawer = new TrianglesDrawer(TrianglesDrawerPrograms.get(gl), this.points, this.normals);
+            drawer = new TrianglesDrawer(TrianglesDrawerPrograms.get(gl), this.points, this.normals, this.entity);
             this.drawers.push(drawer);
         }
         return drawer
