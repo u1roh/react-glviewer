@@ -1,9 +1,26 @@
 import * as vec from './vecmath';
 
-export interface Color3 {
+export class Color3 {
     r: number;
     g: number;
     b: number;
+    constructor(r: number, g: number, b: number) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+    to3f() {
+        return new Color3(
+            this.r / 0xff,
+            this.g / 0xff,
+            this.b / 0xff);
+    }
+    to3b() {
+        return new Color3(
+            Math.round(this.r * 0xff),
+            Math.round(this.g * 0xff),
+            Math.round(this.b * 0xff));
+    }
 }
 
 export interface RenderingContext {
@@ -61,21 +78,22 @@ export class Camera {
 
 export class SelectionSession {
     private objects: object[] = [];
-    emitColor(obj: any): Color3 {
+    emitColor3f(obj: object): Color3 {
         this.objects.push(obj);
-        return SelectionSession.encodeToColor(this.objects.length);
+        return SelectionSession.encodeToColor3b(this.objects.length).to3f();
     }
-    getObject(color: Color3): object | null {
-        const i = SelectionSession.decodeFromColor(color);
+    getObject(color3b: Color3): object | null {
+        const i = SelectionSession.decodeFromColor3b(color3b);
         return 0 < i && i <= this.objects.length ? this.objects[i - 1] : null;
     }
-    private static encodeToColor(n: number): Color3 {
-        // FIXME: not implemented
-        return { r: 1, g: 0, b: 0 };
+    private static encodeToColor3b(n: number): Color3 {
+        return new Color3(
+            n % 0x100,
+            Math.floor(n / 0x100) % 0x100,
+            Math.floor(n / 0x10000) % 0x100);
     }
-    private static decodeFromColor(c: Color3): number {
-        // FIXME: not implemented
-        return c.r == 0 ? 0 : 1;
+    private static decodeFromColor3b(color3b: Color3): number {
+        return color3b.r + color3b.g * 0x100 + color3b.b * 0x10000;
     }
 }
 
@@ -215,10 +233,20 @@ export class GLView {
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.width, this.canvas.height);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuf);
 
+        /*
         const colorBuf = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, colorBuf);
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, this.canvas.width, this.canvas.height);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorBuf);
+        //*/
+        //*
+        const colorBuf = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, colorBuf);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, this.canvas.width, this.canvas.height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorBuf, 0);
+        //*/
 
         const session = new SelectionSession();
         const rc = this.createContext();
@@ -229,7 +257,7 @@ export class GLView {
 
         let pixels = new Uint8Array(4);
         gl.readPixels(x, this.canvas.height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-        let color = { r: pixels[0], g: pixels[1], b: pixels[2] };
+        let color = new Color3(pixels[0], pixels[1], pixels[2]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         return session.getObject(color);

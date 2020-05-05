@@ -136,11 +136,11 @@ class TrianglesNoShadingProgram {
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
         this.uniColor = gl.getUniformLocation(this.program, "color")!;
     }
-    draw(rc: glview.RenderingContext, points: WebGLBuffer, count: number, color: glview.Color3) {
+    draw(rc: glview.RenderingContext, points: WebGLBuffer, count: number, color3f: glview.Color3) {
         if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
-        gl.uniform3f(this.uniColor, color.r, color.g, color.b);
+        gl.uniform3f(this.uniColor, color3f.r, color3f.g, color3f.b);
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
         rc.glUniformProjectionMatrix(this.uniProjMatrix);
 
@@ -199,7 +199,7 @@ class TrianglesDrawer implements glview.Drawable {
         this.programs.shading.draw(rc, this.points, this.normals, this.count);
     }
     drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.programs.noShading.draw(rc, this.points, this.count, session.emitColor(this.entity));
+        this.programs.noShading.draw(rc, this.points, this.count, session.emitColor3f(this.entity));
     }
 }
 
