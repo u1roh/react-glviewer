@@ -212,9 +212,8 @@ export class SceneGraph implements DrawableSource {
     }
     boundingSphere(): vec.Sphere {
         if (this.world === null) {
-            // FIXME: nodes の bouningSphere() を集めた Sphere を作る
-            this.world = this.nodes.length > 0 ? this.nodes[0].boundingSphere() :
-                new vec.Sphere(vec.Vec3.zero(), 1.0);
+            this.world = this.nodes.length === 0 ? vec.Sphere.unit() :
+                vec.Sphere.boundaryOfArray(this.nodes.map(node => node.boundingSphere()));
         }
         return this.world;
     }

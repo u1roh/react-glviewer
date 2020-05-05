@@ -82,6 +82,48 @@ export class Sphere {
         this.center = center;
         this.radius = radius;
     }
+    static unit() {
+        return new Sphere(Vec3.zero(), 1.0);
+    }
+    static boundaryOfTwo(sphere1: Sphere, sphere2: Sphere) {
+        const vec = sphere2.center.sub(sphere1.center);
+        const len = vec.length();
+        if (len + sphere2.radius < sphere1.radius) return sphere1;
+        if (len + sphere1.radius < sphere2.radius) return sphere2;
+        const t = (len + sphere2.radius - sphere1.radius) / 2;
+        const center = sphere1.center.add(vec.mul(t / len));
+        const radius = len + sphere1.radius + sphere2.radius / 2;
+        return new Sphere(center, radius);
+    }
+    static boundaryOfArray(spheres: Sphere[]) {
+        switch (spheres.length) {
+            case 0: return new Sphere(Vec3.zero(), 0.0);
+            case 1: return spheres[0];
+            case 2: return Sphere.boundaryOfTwo(spheres[0], spheres[1]);
+            default:
+                const removeAt = (i: number) => {
+                    const ret = spheres[i];
+                    spheres[i] = spheres[spheres.length - 1];
+                    spheres.pop();
+                    return ret;
+                }
+                const idx = spheres.reduce((acc, item, idx) => spheres[acc].radius > item.radius ? acc : idx, 0);
+                let sphere = removeAt(idx);
+                while (spheres.length > 0) {
+                    let idx = 0;
+                    let len = sphere.center.sub(spheres[0].center).length() + spheres[0].radius;
+                    for (let i = 1; i < spheres.length; ++i) {
+                        const l = sphere.center.sub(spheres[i].center).length() + spheres[i].radius;
+                        if (l > len) {
+                            len = l;
+                            idx = i;
+                        }
+                    }
+                    sphere = Sphere.boundaryOfTwo(sphere, removeAt(idx));
+                }
+                return sphere;
+        }
+    }
 }
 
 export class Interval {
