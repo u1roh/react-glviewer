@@ -97,6 +97,80 @@ export class SelectionSession {
     }
 }
 
+class SelectionBuffer {
+    private readonly gl: WebGLRenderingContext;
+    private readonly render: (session: SelectionSession) => void;
+    private readonly fb: WebGLFramebuffer | null;
+    private readonly depthBuf: WebGLRenderbuffer | null;
+    private readonly colorBuf: WebGLTexture | null;
+    private canvasWidth: number = -1;
+    private canvasHeight: number = -1;
+    private session: SelectionSession | null = null;
+
+    constructor(gl: WebGLRenderingContext, render: (session: SelectionSession) => void) {
+        this.gl = gl;
+        this.render = render;
+        this.fb = gl.createFramebuffer();
+        this.depthBuf = gl.createRenderbuffer();
+        this.colorBuf = gl.createTexture();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb);
+
+        // attach depth buffer to framebuffer
+        gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthBuf);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.depthBuf);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+        // attach color buffer to framebuffer
+        gl.bindTexture(gl.TEXTURE_2D, this.colorBuf);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.colorBuf, 0);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    dispose() {
+        this.gl.deleteFramebuffer(this.fb);
+        this.gl.deleteRenderbuffer(this.depthBuf);
+        this.gl.deleteTexture(this.colorBuf);
+    }
+    clearSession() {
+        this.session = null;
+    }
+    select(x: number, y: number, width: number, height: number) {
+        const gl = this.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb);
+        if (width !== this.canvasWidth || height !== this.canvasHeight) {
+            console.log("setup depth-buffer, color-buffer");
+            this.session = null;
+            this.canvasWidth = width;
+            this.canvasHeight = height;
+
+            gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthBuf);
+            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+            gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+            gl.bindTexture(gl.TEXTURE_2D, this.colorBuf);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+        if (this.session === null) {
+            console.log("render for selection");
+            this.session = new SelectionSession();
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
+            gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+            this.render(this.session);
+            gl.flush();
+        }
+        let pixels = new Uint8Array(4);
+        gl.readPixels(x, this.canvasHeight - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        let color = new Color3(pixels[0], pixels[1], pixels[2]);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        return this.session.getObject(color);
+    }
+}
+
 export interface Drawable {
     gl(): WebGLRenderingContext;
     draw(rc: RenderingContext): void;
@@ -156,12 +230,16 @@ export class GLView {
     gl: WebGLRenderingContext;
     camera = new Camera(vec.RigidTrans.unit(), 1.0);
     sceneGraph: SceneGraph;
+    selectionBuf: SelectionBuffer;
     constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph) {
         const gl = canvas.getContext(useWebGL2 ? "webgl2" : "webgl") as WebGLRenderingContext;
         this.canvas = canvas;
         this.gl = gl;
         this.sceneGraph = sceneGraph;
-
+        this.selectionBuf = new SelectionBuffer(gl, (session) => {
+            const rc = this.createContext();
+            this.sceneGraph.getDrawer(this.gl).drawForSelection(rc, session);
+        });
 
         // Projection Matrix で視線方向を反転させていないので（つまり右手系のままなので）、
         // 通常の OpenGL と違ってデプス値はゼロで初期化して depthFunc を GL_GREATER にする。
@@ -210,7 +288,7 @@ export class GLView {
         });
         canvas.addEventListener("mousedown", e => {
             if (e.button !== 0) return;
-            const obj = this.select(e.offsetX, e.offsetY);
+            const obj = this.selectionBuf.select(e.offsetY, e.offsetY, this.canvas.width, this.canvas.height);
             console.log(obj);
         });
     }
@@ -222,45 +300,7 @@ export class GLView {
         this.gl.clearColor(0.3, 0.3, 0.3, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         this.sceneGraph.getDrawer(this.gl).draw(rc);
-    }
-    select(x: number, y: number) {
-        const gl = this.gl;
-        const fb = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-
-        const depthBuf = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuf);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.width, this.canvas.height);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuf);
-
-        /*
-        const colorBuf = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, colorBuf);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, this.canvas.width, this.canvas.height);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorBuf);
-        //*/
-        //*
-        const colorBuf = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, colorBuf);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, this.canvas.width, this.canvas.height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorBuf, 0);
-        //*/
-
-        const session = new SelectionSession();
-        const rc = this.createContext();
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
-        gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-        this.sceneGraph.getDrawer(this.gl).drawForSelection(rc, session);
-        gl.flush();
-
-        let pixels = new Uint8Array(4);
-        gl.readPixels(x, this.canvas.height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-        let color = new Color3(pixels[0], pixels[1], pixels[2]);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-        return session.getObject(color);
+        this.selectionBuf.clearSession();
     }
     private createContext(): RenderingContext {
         const [projMatrix, viewMatrix] = this.camera.createMatrix(
@@ -301,7 +341,7 @@ export function buildShader(gl: WebGLRenderingContext, type: number, src: string
     gl.shaderSource(shader, src);
     gl.compileShader(shader);
 
-    console.log(gl.getShaderInfoLog(shader));
+    //console.log(gl.getShaderInfoLog(shader));
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
         throw new Error("compile error");
 
@@ -318,7 +358,7 @@ export function createProgram(gl: WebGLRenderingContext, srcV: string, srcF: str
     gl.attachShader(program, shaderF);
     gl.linkProgram(program);
 
-    console.log(gl.getProgramInfoLog(program));
+    //console.log(gl.getProgramInfoLog(program));
     if (!gl.getProgramParameter(program, gl.LINK_STATUS))
         throw new Error("Link Error");
 
