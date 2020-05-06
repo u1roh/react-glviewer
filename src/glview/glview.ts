@@ -176,7 +176,11 @@ class SelectionBuffer {
     }
 }
 
-export interface Drawable {
+export interface Dispose {
+    dispose: () => void;
+}
+
+export interface Drawable extends Dispose {
     draw(rc: RenderingContext): void;
     drawForSelection(rc: RenderingContext, session: SelectionSession): void;
 }
@@ -190,6 +194,9 @@ class DrawableList implements Drawable {
     readonly items: Drawable[];
     constructor(items: Drawable[] = []) {
         this.items = items;
+    }
+    dispose() {
+        for (let x of this.items) x.dispose();
     }
     draw(rc: RenderingContext) {
         for (let x of this.items) x.draw(rc);

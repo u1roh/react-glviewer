@@ -185,6 +185,10 @@ class TrianglesDrawer implements glview.Drawable {
         this.normals = this.programs.createBuffer(normals);
         this.entity = entity;
     }
+    dispose() {
+        this.programs.gl.deleteBuffer(this.points);
+        this.programs.gl.deleteBuffer(this.normals);
+    }
     draw(rc: glview.RenderingContext) {
         this.programs.shading.draw(rc, this.points, this.normals, this.count);
     }

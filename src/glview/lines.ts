@@ -67,6 +67,9 @@ class LinesDrawer implements glview.Drawable {
         this.points = this.program.createBuffer(points);
         this.entity = entity;
     }
+    dispose() {
+        this.program.gl.deleteBuffer(this.points);
+    }
     draw(rc: glview.RenderingContext) {
         this.program.draw(rc, this.points, this.count, new glview.Color3(0, 1, 0));
     }
