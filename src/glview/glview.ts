@@ -370,7 +370,8 @@ export function createProgram(gl: WebGLRenderingContext, srcV: string, srcF: str
     return program;
 }
 
-export function createRegistry<Key, T>(factory: (key: Key) => T) {
+export function createCache<Key, T>(factory: (key: Key) => T) {
+    /*
     const registry = new Map<Key, T>();
     return (key: Key) => {
         let instance = registry.get(key);
@@ -379,5 +380,16 @@ export function createRegistry<Key, T>(factory: (key: Key) => T) {
             registry.set(key, instance);
         }
         return instance;
+    };
+    */
+    // registry の要素数は非常に少ないことを想定しているので、Map を使うよりも配列の線形探索のほうが速いはず
+    const cache: { key: Key; value: T; }[] = [];
+    return (key: Key) => {
+        let item = cache.find(x => x.key === key);
+        if (item === undefined) {
+            item = { key: key, value: factory(key) };
+            cache.push(item);
+        }
+        return item.value;
     };
 }

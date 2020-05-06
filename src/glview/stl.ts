@@ -1,4 +1,4 @@
-import * as tris from './tris';
+import Triangles from './tris';
 
 class ArrayBuf {
     public static readFile(file: File): Promise<ArrayBuffer> {
@@ -33,10 +33,10 @@ export class STLFormat {
                 points[idx + 2] = read();
             }
         }
-        return new tris.Triangles(points, normals);
+        return new Triangles(points, normals);
     }
 
-    public static async readFile(file: File): Promise<tris.Triangles> {
+    public static async readFile(file: File): Promise<Triangles> {
         const buf = await ArrayBuf.readFile(file);
         return STLFormat.readBuf(buf);
     }
