@@ -185,9 +185,6 @@ class TrianglesDrawer implements glview.Drawable {
         this.normals = this.programs.createBuffer(normals);
         this.entity = entity;
     }
-    gl() {
-        return this.programs.gl;
-    }
     draw(rc: glview.RenderingContext) {
         this.programs.shading.draw(rc, this.points, this.normals, this.count);
     }

@@ -177,7 +177,6 @@ class SelectionBuffer {
 }
 
 export interface Drawable {
-    gl(): WebGLRenderingContext;
     draw(rc: RenderingContext): void;
     drawForSelection(rc: RenderingContext, session: SelectionSession): void;
 }
@@ -188,14 +187,9 @@ export interface DrawableSource {
 }
 
 class DrawableList implements Drawable {
-    private readonly _gl: WebGLRenderingContext;
     readonly items: Drawable[];
-    constructor(gl: WebGLRenderingContext, items: Drawable[] = []) {
-        this._gl = gl;
+    constructor(items: Drawable[] = []) {
         this.items = items;
-    }
-    gl() {
-        return this._gl;
     }
     draw(rc: RenderingContext) {
         for (let x of this.items) x.draw(rc);
@@ -211,7 +205,7 @@ export class SceneGraph implements DrawableSource {
     private drawer: DrawableList | null = null;
     getDrawer(gl: WebGLRenderingContext): Drawable {
         if (this.drawer === null) {
-            this.drawer = new DrawableList(gl, this.nodes.map(x => x.getDrawer(gl)));
+            this.drawer = new DrawableList(this.nodes.map(x => x.getDrawer(gl)));
         }
         return this.drawer;
     }
