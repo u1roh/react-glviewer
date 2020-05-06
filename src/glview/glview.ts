@@ -77,7 +77,7 @@ export class Camera {
 }
 
 export class SelectionSession {
-    private objects: object[] = [];
+    private readonly objects: object[] = [];
     emitColor3f(obj: object): Color3 {
         this.objects.push(obj);
         return SelectionSession.encodeToColor3b(this.objects.length).to3f();
@@ -188,8 +188,8 @@ export interface DrawableSource {
 }
 
 class DrawableList implements Drawable {
-    private _gl: WebGLRenderingContext;
-    items: Drawable[];
+    private readonly _gl: WebGLRenderingContext;
+    readonly items: Drawable[];
     constructor(gl: WebGLRenderingContext, items: Drawable[] = []) {
         this._gl = gl;
         this.items = items;
@@ -230,11 +230,11 @@ export class SceneGraph implements DrawableSource {
 }
 
 export class GLView {
-    canvas: HTMLCanvasElement;
-    gl: WebGLRenderingContext;
-    camera = new Camera(vec.RigidTrans.unit(), 1.0);
-    sceneGraph: SceneGraph;
-    selectionBuf: SelectionBuffer;
+    readonly canvas: HTMLCanvasElement;
+    readonly gl: WebGLRenderingContext;
+    readonly camera = new Camera(vec.RigidTrans.unit(), 1.0);
+    readonly sceneGraph: SceneGraph;
+    private readonly selectionBuf: SelectionBuffer;
     constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph) {
         const gl = canvas.getContext(useWebGL2 ? "webgl2" : "webgl") as WebGLRenderingContext;
         this.canvas = canvas;

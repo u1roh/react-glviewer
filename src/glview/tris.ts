@@ -88,12 +88,12 @@ void main(){
 `;
 
 class TrianglesShadingProgram {
-    private gl: WebGLRenderingContext;
-    private program: WebGLProgram;
-    private atrPosition: number;
-    private atrNormal: number;
-    private uniModelViewMatrix: WebGLUniformLocation;
-    private uniProjMatrix: WebGLUniformLocation;
+    private readonly gl: WebGLRenderingContext;
+    private readonly program: WebGLProgram;
+    private readonly atrPosition: number;
+    private readonly atrNormal: number;
+    private readonly uniModelViewMatrix: WebGLUniformLocation;
+    private readonly uniProjMatrix: WebGLUniformLocation;
     constructor(gl: WebGLRenderingContext) {
         this.gl = gl;
         this.program = glview.isWebGL2(gl) ? glview.createProgram(gl, vs2, fs2) : glview.createProgram(gl, vs, fs);
@@ -122,12 +122,12 @@ class TrianglesShadingProgram {
 }
 
 class TrianglesNoShadingProgram {
-    private gl: WebGLRenderingContext;
-    private program: WebGLProgram;
-    private atrPosition: number;
-    private uniModelViewMatrix: WebGLUniformLocation;
-    private uniProjMatrix: WebGLUniformLocation;
-    private uniColor: WebGLUniformLocation;
+    private readonly gl: WebGLRenderingContext;
+    private readonly program: WebGLProgram;
+    private readonly atrPosition: number;
+    private readonly uniModelViewMatrix: WebGLUniformLocation;
+    private readonly uniProjMatrix: WebGLUniformLocation;
+    private readonly uniColor: WebGLUniformLocation;
     constructor(gl: WebGLRenderingContext) {
         this.gl = gl;
         this.program = glview.createProgram(gl, no_shading_vs, no_shading_fs);
@@ -162,9 +162,9 @@ class TrianglesDrawerPrograms {
         }
         return instance;
     }
-    gl: WebGLRenderingContext;
-    shading: TrianglesShadingProgram;
-    noShading: TrianglesNoShadingProgram;
+    readonly gl: WebGLRenderingContext;
+    readonly shading: TrianglesShadingProgram;
+    readonly noShading: TrianglesNoShadingProgram;
     private constructor(gl: WebGLRenderingContext) {
         this.gl = gl;
         this.shading = new TrianglesShadingProgram(gl);
@@ -179,11 +179,11 @@ class TrianglesDrawerPrograms {
 }
 
 class TrianglesDrawer implements glview.Drawable {
-    private programs: TrianglesDrawerPrograms;
-    private count: number;
-    private points: WebGLBuffer;
-    private normals: WebGLBuffer;
-    private entity: object;
+    private readonly programs: TrianglesDrawerPrograms;
+    private readonly count: number;
+    private readonly points: WebGLBuffer;
+    private readonly normals: WebGLBuffer;
+    private readonly entity: object;
     constructor(programs: TrianglesDrawerPrograms, points: Float32Array, normals: Float32Array, entity: object) {
         if (points.length !== normals.length) throw new Error("points.length != normals.length");
         this.programs = programs;
@@ -204,15 +204,14 @@ class TrianglesDrawer implements glview.Drawable {
 }
 
 export class Triangles implements glview.DrawableSource {
-    private drawers: TrianglesDrawer[];
-    private points: Float32Array;
-    private normals: Float32Array;
-    private boundary: vec.Sphere;
-    private entity: object;
+    private readonly drawers: TrianglesDrawer[] = [];
+    private readonly points: Float32Array;
+    private readonly normals: Float32Array;
+    private readonly boundary: vec.Sphere;
+    private readonly entity: object;
     constructor(points: Float32Array, normals: Float32Array, entity: object | null = null) {
         this.points = points;
         this.normals = normals;
-        this.drawers = [];
         this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
         this.entity = entity === null ? this : entity;
     }
