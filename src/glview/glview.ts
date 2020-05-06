@@ -369,3 +369,15 @@ export function createProgram(gl: WebGLRenderingContext, srcV: string, srcF: str
 
     return program;
 }
+
+export function createRegistry<Key, T>(factory: (key: Key) => T) {
+    const registry = new Map<Key, T>();
+    return (key: Key) => {
+        let instance = registry.get(key);
+        if (instance === undefined) {
+            instance = factory(key);
+            registry.set(key, instance);
+        }
+        return instance;
+    };
+}

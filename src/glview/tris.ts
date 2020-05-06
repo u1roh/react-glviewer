@@ -153,15 +153,7 @@ class TrianglesNoShadingProgram {
 }
 
 class TrianglesDrawerPrograms {
-    private static registry = new Map<WebGLRenderingContext, TrianglesDrawerPrograms>();
-    static get(gl: WebGLRenderingContext) {
-        let instance = this.registry.get(gl);
-        if (instance === undefined) {
-            instance = new TrianglesDrawerPrograms(gl);
-            this.registry.set(gl, instance);
-        }
-        return instance;
-    }
+    static get = glview.createRegistry((gl: WebGLRenderingContext) => new TrianglesDrawerPrograms(gl));
     readonly gl: WebGLRenderingContext;
     readonly shading: TrianglesShadingProgram;
     readonly noShading: TrianglesNoShadingProgram;
@@ -184,12 +176,12 @@ class TrianglesDrawer implements glview.Drawable {
     private readonly points: WebGLBuffer;
     private readonly normals: WebGLBuffer;
     private readonly entity: object;
-    constructor(programs: TrianglesDrawerPrograms, points: Float32Array, normals: Float32Array, entity: object) {
+    constructor(gl: WebGLRenderingContext, points: Float32Array, normals: Float32Array, entity: object) {
         if (points.length !== normals.length) throw new Error("points.length != normals.length");
-        this.programs = programs;
+        this.programs = TrianglesDrawerPrograms.get(gl);
         this.count = points.length / 3;
-        this.points = programs.createBuffer(points);
-        this.normals = programs.createBuffer(normals);
+        this.points = this.programs.createBuffer(points);
+        this.normals = this.programs.createBuffer(normals);
         this.entity = entity;
     }
     gl() {
@@ -218,7 +210,7 @@ export class Triangles implements glview.DrawableSource {
     getDrawer(gl: WebGLRenderingContext) {
         let drawer = this.drawers.find(drawer => drawer.gl() === gl);
         if (drawer === undefined) {
-            drawer = new TrianglesDrawer(TrianglesDrawerPrograms.get(gl), this.points, this.normals, this.entity);
+            drawer = new TrianglesDrawer(gl, this.points, this.normals, this.entity);
             this.drawers.push(drawer);
         }
         return drawer
