@@ -1,4 +1,38 @@
 
+export class Vec2 {
+    x: number; y: number;
+    constructor(x: number, y: number) {
+        this.x = x; this.y = y;
+    }
+    static zero() { return new Vec2(0, 0); }
+    static ex() { return new Vec2(1, 0); }
+    static ey() { return new Vec2(0, 1); }
+    to3d() {
+        return new Vec3(this.x, this.y, 0);
+    }
+    clone() {
+        return new Vec2(this.x, this.y);
+    }
+    lengthSquared(): number {
+        return this.x * this.x + this.y * this.y;
+    }
+    length(): number {
+        return Math.sqrt(this.lengthSquared());
+    }
+    neg(): Vec2 {
+        return new Vec2(-this.x, -this.y);
+    }
+    add(v: Vec2): Vec2 {
+        return new Vec2(this.x + v.x, this.y + v.y);
+    }
+    sub(v: Vec2): Vec2 {
+        return new Vec2(this.x - v.x, this.y - v.y);
+    }
+    mul(scalar: number): Vec2 {
+        return new Vec2(scalar * this.x, scalar * this.y);
+    }
+}
+
 export class Vec3 {
     x: number; y: number; z: number;
     constructor(x: number, y: number, z: number) {
