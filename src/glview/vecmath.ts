@@ -175,6 +175,32 @@ export class Interval {
     }
 }
 
+export class Box2 {
+    x: Interval;
+    y: Interval;
+    constructor(x: Interval, y: Interval) {
+        this.x = x;
+        this.y = y;
+    }
+    lower(): Vec2 {
+        return new Vec2(this.x.lower, this.y.lower);
+    }
+    upper(): Vec2 {
+        return new Vec2(this.x.upper, this.y.upper);
+    }
+    center(): Vec2 {
+        return new Vec2(this.x.center(), this.y.center());
+    }
+    points_ccw(): Vec2[] {
+        return [
+            new Vec2(this.x.lower, this.y.lower),
+            new Vec2(this.x.upper, this.y.lower),
+            new Vec2(this.x.upper, this.y.upper),
+            new Vec2(this.x.lower, this.y.upper),
+        ];
+    }
+}
+
 export class Box3 {
     x: Interval;
     y: Interval;
