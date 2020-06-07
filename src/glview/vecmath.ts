@@ -116,9 +116,7 @@ export class Sphere {
         this.center = center;
         this.radius = radius;
     }
-    static unit() {
-        return new Sphere(Vec3.ZERO, 1.0);
-    }
+    static readonly UNIT = new Sphere(Vec3.ZERO, 1.0);
     static boundaryOfTwo(sphere1: Sphere, sphere2: Sphere) {
         const vec = sphere2.center.sub(sphere1.center);
         const len = vec.length();

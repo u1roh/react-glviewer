@@ -1,9 +1,9 @@
 import * as vec from './vecmath';
 
 export class Color3 {
-    r: number;
-    g: number;
-    b: number;
+    readonly r: number;
+    readonly g: number;
+    readonly b: number;
     constructor(r: number, g: number, b: number) {
         this.r = r;
         this.g = g;
@@ -219,7 +219,7 @@ export class SceneGraph implements DrawableSource {
     boundingSphere(): vec.Sphere {
         if (this.world === null) {
             const spheres = this.nodes.map(node => node.boundingSphere()).filter(s => s !== undefined).map(s => s!);
-            this.world = spheres.length === 0 ? vec.Sphere.unit() : vec.Sphere.boundaryOfArray(spheres);
+            this.world = spheres.length === 0 ? vec.Sphere.UNIT : vec.Sphere.boundaryOfArray(spheres);
         }
         return this.world;
     }
@@ -357,14 +357,12 @@ export function isWebGL2(gl: WebGLRenderingContext): boolean {
 export function buildShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
     const shader = gl.createShader(type);
     if (shader == null) throw new Error("shader is null");
-
     gl.shaderSource(shader, src);
     gl.compileShader(shader);
-
-    //console.log(gl.getShaderInfoLog(shader));
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.log(gl.getShaderInfoLog(shader));
         throw new Error("compile error");
-
+    }
     return shader;
 }
 
@@ -373,15 +371,13 @@ export function createProgram(gl: WebGLRenderingContext, srcV: string, srcF: str
     const shaderF = buildShader(gl, gl.FRAGMENT_SHADER, srcF);
     const program = gl.createProgram();
     if (program == null) throw new Error("program is null");
-
     gl.attachShader(program, shaderV);
     gl.attachShader(program, shaderF);
     gl.linkProgram(program);
-
-    //console.log(gl.getProgramInfoLog(program));
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.log(gl.getProgramInfoLog(program));
         throw new Error("Link Error");
-
+    }
     return program;
 }
 

@@ -16,14 +16,20 @@ void main() {
 const fs = `
 precision mediump float;
 uniform sampler2D texture;
+uniform vec3 color;
+uniform bool isTextureEnabled;
 varying vec2 oTexCoord;
 void main(){
-    gl_FragColor = texture2D(texture, oTexCoord);
+    if (isTextureEnabled) {
+        gl_FragColor = vec4(color, 1) * texture2D(texture, oTexCoord);
+    } else {
+        gl_FragColor = vec4(color, 1);
+    }
 }
 `;
 
-class ImageProgram {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new ImageProgram(gl));
+class ImageBoardProgram {
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new ImageBoardProgram(gl));
     readonly gl: WebGLRenderingContext;
     private readonly program: WebGLProgram;
     private readonly atrPosition: number;
@@ -31,6 +37,8 @@ class ImageProgram {
     private readonly uniModelViewMatrix: WebGLUniformLocation;
     private readonly uniProjMatrix: WebGLUniformLocation;
     private readonly uniTexture: WebGLUniformLocation;
+    private readonly uniColor: WebGLUniformLocation;
+    private readonly uniIsTextureEnabled: WebGLUniformLocation;
     constructor(gl: WebGLRenderingContext) {
         this.gl = gl;
         this.program = glview.createProgram(gl, vs, fs);
@@ -39,16 +47,25 @@ class ImageProgram {
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
         this.uniTexture = gl.getUniformLocation(this.program, "texture")!;
+        this.uniColor = gl.getUniformLocation(this.program, "color")!;
+        this.uniIsTextureEnabled = gl.getUniformLocation(this.program, "isTextureEnabled")!;
     }
-    draw(rc: glview.RenderingContext, texture: WebGLTexture, points: WebGLBuffer, texCoords: WebGLBuffer, count: number, color: glview.Color3 | null) {
+    draw(rc: glview.RenderingContext, texOrColor: WebGLTexture | glview.Color3, points: WebGLBuffer, texCoords: WebGLBuffer, count: number) {
         if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
         rc.glUniformProjectionMatrix(this.uniProjMatrix);
 
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.uniform1i(this.uniTexture, 0);
+        if ('r' in texOrColor) {
+            gl.uniform3f(this.uniColor, texOrColor.r, texOrColor.g, texOrColor.b);
+            gl.uniform1i(this.uniIsTextureEnabled, 0);
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, texOrColor);
+            gl.uniform1i(this.uniTexture, 0);
+            gl.uniform3f(this.uniColor, 1, 1, 1);
+            gl.uniform1i(this.uniIsTextureEnabled, 1);
+        }
 
         gl.bindBuffer(gl.ARRAY_BUFFER, points);
         gl.enableVertexAttribArray(this.atrPosition);
@@ -85,15 +102,15 @@ class ImageProgram {
     }
 }
 
-class ImageDrawer implements glview.Drawable {
-    private readonly program: ImageProgram;
+class ImageBoardDrawer implements glview.Drawable {
+    private readonly program: ImageBoardProgram;
     private readonly count: number;
     private readonly points: WebGLBuffer;
     private readonly texCoords: WebGLBuffer;
     private readonly texture: WebGLTexture;
     private readonly entity: object;
     constructor(gl: WebGLRenderingContext, image: TexImageSource, points: Float32Array, entity: object) {
-        this.program = ImageProgram.get(gl);
+        this.program = ImageBoardProgram.get(gl);
         this.count = points.length / 3;
         this.points = this.program.createBuffer(points);
         this.texCoords = this.program.createTexCoordBuffer();
@@ -105,10 +122,10 @@ class ImageDrawer implements glview.Drawable {
         this.program.gl.deleteTexture(this.texture);
     }
     draw(rc: glview.RenderingContext) {
-        this.program.draw(rc, this.texture, this.points, this.texCoords, this.count, null);
+        this.program.draw(rc, this.texture, this.points, this.texCoords, this.count);
     }
     drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.program.draw(rc, this.texture, this.points, this.texCoords, this.count, session.emitColor3f(this.entity));
+        this.program.draw(rc, session.emitColor3f(this.entity), this.points, this.texCoords, this.count);
     }
 }
 
@@ -134,7 +151,7 @@ export class ImageBoard implements glview.DrawableSource {
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => {
-        return new ImageDrawer(gl, this.image, this.genRectPoints(), this.entity);
+        return new ImageBoardDrawer(gl, this.image, this.genRectPoints(), this.entity);
     });
     boundingSphere(): vec.Sphere {
         return this.boundary;
