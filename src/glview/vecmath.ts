@@ -173,6 +173,9 @@ export class Interval {
     center(): number {
         return (this.lower + this.upper) / 2;
     }
+    static unit(): Interval {
+        return new Interval(0, 1);
+    }
 }
 
 export class Box2 {
@@ -182,22 +185,27 @@ export class Box2 {
         this.x = x;
         this.y = y;
     }
+    ll(): Vec2 { return new Vec2(this.x.lower, this.y.lower); }
+    ul(): Vec2 { return new Vec2(this.x.upper, this.y.lower); }
+    lu(): Vec2 { return new Vec2(this.x.lower, this.y.upper); }
+    uu(): Vec2 { return new Vec2(this.x.upper, this.y.upper); }
     lower(): Vec2 {
-        return new Vec2(this.x.lower, this.y.lower);
+        return this.ll();
     }
     upper(): Vec2 {
-        return new Vec2(this.x.upper, this.y.upper);
+        return this.uu();
     }
     center(): Vec2 {
         return new Vec2(this.x.center(), this.y.center());
     }
+    points(): Vec2[] {
+        return [this.ll(), this.ul(), this.lu(), this.uu()];
+    }
     points_ccw(): Vec2[] {
-        return [
-            new Vec2(this.x.lower, this.y.lower),
-            new Vec2(this.x.upper, this.y.lower),
-            new Vec2(this.x.upper, this.y.upper),
-            new Vec2(this.x.lower, this.y.upper),
-        ];
+        return [this.ll(), this.ul(), this.uu(), this.lu()];
+    }
+    static unit(): Box2 {
+        return new Box2(Interval.unit(), Interval.unit());
     }
 }
 

@@ -223,7 +223,15 @@ export class SceneGraph implements DrawableSource {
         }
         return this.world;
     }
-    addNode(node: DrawableSource | SceneGraph) {
+    setNodes(nodes: DrawableSource[]) {
+        this.nodes = nodes;
+        this.world = null;
+        this.drawer = null;
+    }
+    clearNodes() {
+        this.setNodes([]);
+    }
+    addNode(node: DrawableSource) {
         this.nodes.push(node);
         this.world = null;
         this.drawer = null;

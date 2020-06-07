@@ -47,6 +47,7 @@ export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSou
     }, [canvas, props.useWebGL2]);
     useEffect(() => {
         if (view.current != null && props.scene != null) {
+            sceneGraph.current.clearNodes();
             sceneGraph.current.addNode(props.scene);
             view.current.fit();
             view.current.render();
