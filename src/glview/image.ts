@@ -121,7 +121,7 @@ export class ImageBoard implements glview.DrawableSource {
     constructor(
         image: TexImageSource,
         area: vec.Box2 = new vec.Box2(new vec.Interval(0, image.width), new vec.Interval(0, image.height)),
-        pos: vec.RigidTrans = vec.RigidTrans.unit(),
+        pos: vec.RigidTrans = vec.RigidTrans.UNIT,
         entity: object | null = null
     ) {
         this.image = image;

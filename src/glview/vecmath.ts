@@ -173,17 +173,13 @@ export class Interval {
     get center(): number {
         return (this.lower + this.upper) / 2;
     }
-    static get UNIT(): Interval {
-        return new Interval(0, 1);
-    }
-    static get INFINITY(): Interval {
-        return new Interval(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
-    }
+    static readonly UNIT = new Interval(0, 1);
+    static readonly INFINITY = new Interval(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
 }
 
 export class IntervalBuilder {
-    lower: number = Number.POSITIVE_INFINITY;
-    upper: number = Number.NEGATIVE_INFINITY;
+    private lower: number = Number.POSITIVE_INFINITY;
+    private upper: number = Number.NEGATIVE_INFINITY;
     add(x: number) {
         if (x < this.lower) this.lower = x;
         if (x > this.upper) this.upper = x;
@@ -194,8 +190,8 @@ export class IntervalBuilder {
 }
 
 export class Box2 {
-    x: Interval;
-    y: Interval;
+    readonly x: Interval;
+    readonly y: Interval;
     constructor(x: Interval, y: Interval) {
         this.x = x;
         this.y = y;
@@ -219,15 +215,13 @@ export class Box2 {
     points_ccw(): Vec2[] {
         return [this.ll, this.ul, this.uu, this.lu];
     }
-    static get unit(): Box2 {
-        return new Box2(Interval.UNIT, Interval.UNIT);
-    }
+    static readonly UNIT = new Box2(Interval.UNIT, Interval.UNIT);
 }
 
 export class Box3 {
-    x: Interval;
-    y: Interval;
-    z: Interval;
+    readonly x: Interval;
+    readonly y: Interval;
+    readonly z: Interval;
     constructor(x: Interval, y: Interval, z: Interval) {
         this.x = x;
         this.y = y;
@@ -248,22 +242,17 @@ export class Box3 {
         return new Sphere(center, radius);
     }
     static boundaryOf(points: Float32Array): Box3 | null {
-        const x = new IntervalBuilder();
-        const y = new IntervalBuilder();
-        const z = new IntervalBuilder();
-        for (let i = 0; i < points.length; ++i) {
-            const r = (() => {
-                switch (i % 3) {
-                    case 0: return x;
-                    case 1: return y;
-                    default: return z;
-                }
-            })();
-            r.add(points[i]);
+        const bx = new IntervalBuilder();
+        const by = new IntervalBuilder();
+        const bz = new IntervalBuilder();
+        for (let i = 0; i < points.length; i += 3) {
+            bx.add(points[i + 0]);
+            by.add(points[i + 1]);
+            bz.add(points[i + 2]);
         }
-        const box = [x.build(), y.build(), z.build()];
-        if (box[0] != null && box[1] != null && box[2] != null) {
-            return new Box3(box[0], box[1], box[2]);
+        const [x, y, z] = [bx.build(), by.build(), bz.build()];
+        if (x !== null && y !== null && z !== null) {
+            return new Box3(x, y, z);
         } else {
             return null;
         }
@@ -271,9 +260,9 @@ export class Box3 {
 }
 
 export class Triangle {
-    p1: Vec3;
-    p2: Vec3;
-    p3: Vec3;
+    readonly p1: Vec3;
+    readonly p2: Vec3;
+    readonly p3: Vec3;
     constructor(p1: Vec3, p2: Vec3, p3: Vec3) {
         this.p1 = p1;
         this.p2 = p2;
@@ -282,10 +271,10 @@ export class Triangle {
 }
 
 export class Quaternion {
-    w: number;
-    x: number;
-    y: number;
-    z: number;
+    readonly w: number;
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
     constructor(w: number, x: number, y: number, z: number) {
         this.w = w;
         this.x = x;
@@ -305,10 +294,11 @@ export class Quaternion {
             this.w * q.y - this.x * q.z + this.y * q.w + this.z * q.x,
             this.w * q.z + this.x * q.y - this.y * q.x + this.z * q.w);
     }
+    static readonly UNIT = new Quaternion(1, 0, 0, 0);
 }
 
 export class Rotation {
-    private q: Quaternion;
+    private readonly q: Quaternion;
     constructor(q: Quaternion) {
         this.q = q;
     }
@@ -318,12 +308,10 @@ export class Rotation {
         if (!isFinite(s)) s = 0;
         return new Rotation(new Quaternion(c, s * axis.x, s * axis.y, s * axis.z));
     }
-    static unit() {
-        return new Rotation(new Quaternion(1, 0, 0, 0));
-    }
-    u() { return this.transform(Vec3.EX); }
-    v() { return this.transform(Vec3.EY); }
-    n() { return this.transform(Vec3.EZ); }
+    static readonly UNIT = new Rotation(Quaternion.UNIT);
+    get u() { return this.transform(Vec3.EX); }
+    get v() { return this.transform(Vec3.EY); }
+    get n() { return this.transform(Vec3.EZ); }
     clone() {
         return new Rotation(this.q.clone());
     }
@@ -363,15 +351,13 @@ export class Rotation {
 }
 
 export class RigidTrans {
-    r: Rotation;
-    t: Vec3; // translation
+    readonly r: Rotation;
+    readonly t: Vec3; // translation
     constructor(r: Rotation, t: Vec3) {
         this.r = r;
         this.t = t;
     }
-    static unit() {
-        return new RigidTrans(Rotation.unit(), Vec3.ZERO);
-    }
+    static readonly UNIT = new RigidTrans(Rotation.UNIT, Vec3.ZERO);
     clone() {
         return new RigidTrans(this.r.clone(), this.t.clone());
     }

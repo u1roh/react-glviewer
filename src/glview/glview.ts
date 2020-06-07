@@ -63,7 +63,7 @@ export class Camera {
         this.scale = scale;
     }
     fit(world: vec.Sphere) {
-        this.focus.t = world.center;
+        this.focus = new vec.RigidTrans(this.focus.r, world.center);
         this.scale = world.radius;
     }
     createMatrix(world: vec.Sphere, canvasWidth: number, canvasHeight: number): [vec.Matrix4, vec.Matrix4] {
@@ -247,7 +247,7 @@ export class SceneGraph implements DrawableSource {
 export class GLView {
     readonly canvas: HTMLCanvasElement;
     readonly gl: WebGLRenderingContext;
-    readonly camera = new Camera(vec.RigidTrans.unit(), 1.0);
+    readonly camera = new Camera(vec.RigidTrans.UNIT, 1.0);
     readonly sceneGraph: SceneGraph;
     private readonly selectionBuf: SelectionBuffer;
     constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph) {
@@ -270,7 +270,7 @@ export class GLView {
         canvas.addEventListener("mousedown", e => {
             if (e.button !== 2) return;
             const scale = this.camera.scale;
-            const focus = this.camera.focus.clone();
+            const focus = this.camera.focus;
             const lengthPerPixel = this.lengthPerPixel();
             const [x0, y0] = [e.offsetX, e.offsetY];
             const onMouseMove = (e: MouseEvent) => {
@@ -278,7 +278,7 @@ export class GLView {
                 const dy = e.offsetY - y0;
                 const move = focus.r.transform(new vec.Vec3(lengthPerPixel * dx, -lengthPerPixel * dy, 0));
                 if (e.shiftKey) {
-                    this.camera.focus.t = focus.t.sub(move);
+                    this.camera.focus = new vec.RigidTrans(this.camera.focus.r, focus.t.sub(move));
                 }
                 else if (e.ctrlKey) {
                     const y = Math.abs(dy) / 40;
@@ -286,9 +286,9 @@ export class GLView {
                     this.camera.scale = factor * scale;
                 }
                 else {
-                    const axis = move.cross(focus.r.n());
+                    const axis = move.cross(focus.r.n);
                     const radian = move.length() / this.camera.scale;
-                    this.camera.focus.r = vec.Rotation.ofAxis(axis, radian).mul(focus.r);
+                    this.camera.focus = new vec.RigidTrans(vec.Rotation.ofAxis(axis, radian).mul(focus.r), this.camera.focus.t);
                 }
                 this.render();
             };
