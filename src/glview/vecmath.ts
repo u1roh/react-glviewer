@@ -1,12 +1,12 @@
 
 export class Vec2 {
-    x: number; y: number;
+    readonly x: number; readonly y: number;
     constructor(x: number, y: number) {
         this.x = x; this.y = y;
     }
-    static zero() { return new Vec2(0, 0); }
-    static ex() { return new Vec2(1, 0); }
-    static ey() { return new Vec2(0, 1); }
+    static readonly ZERO = new Vec2(0, 0);
+    static readonly EX = new Vec2(1, 0);
+    static readonly EY = new Vec2(0, 1);
     to3d() {
         return new Vec3(this.x, this.y, 0);
     }
@@ -34,14 +34,14 @@ export class Vec2 {
 }
 
 export class Vec3 {
-    x: number; y: number; z: number;
+    readonly x: number; readonly y: number; readonly z: number;
     constructor(x: number, y: number, z: number) {
         this.x = x; this.y = y; this.z = z;
     }
-    static zero() { return new Vec3(0, 0, 0); }
-    static ex() { return new Vec3(1, 0, 0); }
-    static ey() { return new Vec3(0, 1, 0); }
-    static ez() { return new Vec3(0, 0, 1); }
+    static readonly ZERO = new Vec3(0, 0, 0);
+    static readonly EX = new Vec3(1, 0, 0);
+    static readonly EY = new Vec3(0, 1, 0);
+    static readonly EZ = new Vec3(0, 0, 1);
     clone() {
         return new Vec3(this.x, this.y, this.z);
     }
@@ -77,7 +77,7 @@ export class Matrix4 {
         if (a.length !== 16) throw new Error("Matrix4: a.length != 16");
         this.a = a;
     }
-    static zero() {
+    static get ZERO() {
         return new Matrix4([
             0, 0, 0, 0,
             0, 0, 0, 0,
@@ -85,7 +85,7 @@ export class Matrix4 {
             0, 0, 0, 0
         ]);
     }
-    static unit() {
+    static get UNIT() {
         return new Matrix4([
             1, 0, 0, 0,
             0, 1, 0, 0,
@@ -93,7 +93,7 @@ export class Matrix4 {
             0, 0, 0, 1
         ]);
     }
-    array(): number[] {
+    get array(): number[] {
         return this.a;
     }
     mul(m: Matrix4): Matrix4 {
@@ -110,14 +110,14 @@ export class Matrix4 {
 }
 
 export class Sphere {
-    center: Vec3;
-    radius: number;
+    readonly center: Vec3;
+    readonly radius: number;
     constructor(center: Vec3, radius: number) {
         this.center = center;
         this.radius = radius;
     }
     static unit() {
-        return new Sphere(Vec3.zero(), 1.0);
+        return new Sphere(Vec3.ZERO, 1.0);
     }
     static boundaryOfTwo(sphere1: Sphere, sphere2: Sphere) {
         const vec = sphere2.center.sub(sphere1.center);
@@ -131,7 +131,7 @@ export class Sphere {
     }
     static boundaryOfArray(spheres: Sphere[]) {
         switch (spheres.length) {
-            case 0: return new Sphere(Vec3.zero(), 0.0);
+            case 0: return new Sphere(Vec3.ZERO, 0.0);
             case 1: return spheres[0];
             case 2: return Sphere.boundaryOfTwo(spheres[0], spheres[1]);
             default:
@@ -161,20 +161,35 @@ export class Sphere {
 }
 
 export class Interval {
-    lower: number;
-    upper: number;
+    readonly lower: number;
+    readonly upper: number;
     constructor(lower: number, upper: number) {
         this.lower = lower;
         this.upper = upper;
     }
-    width(): number {
+    get width(): number {
         return this.upper - this.lower;
     }
-    center(): number {
+    get center(): number {
         return (this.lower + this.upper) / 2;
     }
-    static unit(): Interval {
+    static get UNIT(): Interval {
         return new Interval(0, 1);
+    }
+    static get INFINITY(): Interval {
+        return new Interval(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
+    }
+}
+
+export class IntervalBuilder {
+    lower: number = Number.POSITIVE_INFINITY;
+    upper: number = Number.NEGATIVE_INFINITY;
+    add(x: number) {
+        if (x < this.lower) this.lower = x;
+        if (x > this.upper) this.upper = x;
+    }
+    build(): Interval | null {
+        return this.lower < this.upper ? new Interval(this.lower, this.upper) : null;
     }
 }
 
@@ -185,27 +200,27 @@ export class Box2 {
         this.x = x;
         this.y = y;
     }
-    ll(): Vec2 { return new Vec2(this.x.lower, this.y.lower); }
-    ul(): Vec2 { return new Vec2(this.x.upper, this.y.lower); }
-    lu(): Vec2 { return new Vec2(this.x.lower, this.y.upper); }
-    uu(): Vec2 { return new Vec2(this.x.upper, this.y.upper); }
-    lower(): Vec2 {
-        return this.ll();
+    get ll(): Vec2 { return new Vec2(this.x.lower, this.y.lower); }
+    get ul(): Vec2 { return new Vec2(this.x.upper, this.y.lower); }
+    get lu(): Vec2 { return new Vec2(this.x.lower, this.y.upper); }
+    get uu(): Vec2 { return new Vec2(this.x.upper, this.y.upper); }
+    get lower(): Vec2 {
+        return this.ll;
     }
-    upper(): Vec2 {
-        return this.uu();
+    get upper(): Vec2 {
+        return this.uu;
     }
-    center(): Vec2 {
-        return new Vec2(this.x.center(), this.y.center());
+    get center(): Vec2 {
+        return new Vec2(this.x.center, this.y.center);
     }
     points(): Vec2[] {
-        return [this.ll(), this.ul(), this.lu(), this.uu()];
+        return [this.ll, this.ul, this.lu, this.uu];
     }
     points_ccw(): Vec2[] {
-        return [this.ll(), this.ul(), this.uu(), this.lu()];
+        return [this.ll, this.ul, this.uu, this.lu];
     }
-    static unit(): Box2 {
-        return new Box2(Interval.unit(), Interval.unit());
+    static get unit(): Box2 {
+        return new Box2(Interval.UNIT, Interval.UNIT);
     }
 }
 
@@ -218,38 +233,40 @@ export class Box3 {
         this.y = y;
         this.z = z;
     }
-    lower(): Vec3 {
+    get lower(): Vec3 {
         return new Vec3(this.x.lower, this.y.lower, this.z.lower);
     }
-    upper(): Vec3 {
+    get upper(): Vec3 {
         return new Vec3(this.x.upper, this.y.upper, this.z.upper);
     }
-    center(): Vec3 {
-        return new Vec3(this.x.center(), this.y.center(), this.z.center());
+    get center(): Vec3 {
+        return new Vec3(this.x.center, this.y.center, this.z.center);
     }
     boundingSphere(): Sphere {
-        const center = this.center();
-        const radius = this.upper().sub(center).length();
+        const center = this.center;
+        const radius = this.upper.sub(center).length();
         return new Sphere(center, radius);
     }
-    static boundaryOf(points: Float32Array): Box3 {
-        let box = new Box3(
-            new Interval(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY),
-            new Interval(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY),
-            new Interval(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY));
+    static boundaryOf(points: Float32Array): Box3 | null {
+        const x = new IntervalBuilder();
+        const y = new IntervalBuilder();
+        const z = new IntervalBuilder();
         for (let i = 0; i < points.length; ++i) {
-            let r: Interval | null = null;
-            switch (i % 3) {
-                case 0: r = box.x; break;
-                case 1: r = box.y; break;
-                case 2: r = box.z; break;
-            }
-            if (r != null) {
-                if (points[i] < r.lower) r.lower = points[i];
-                if (points[i] > r.upper) r.upper = points[i];
-            }
+            const r = (() => {
+                switch (i % 3) {
+                    case 0: return x;
+                    case 1: return y;
+                    default: return z;
+                }
+            })();
+            r.add(points[i]);
         }
-        return box;
+        const box = [x.build(), y.build(), z.build()];
+        if (box[0] != null && box[1] != null && box[2] != null) {
+            return new Box3(box[0], box[1], box[2]);
+        } else {
+            return null;
+        }
     }
 }
 
@@ -304,9 +321,9 @@ export class Rotation {
     static unit() {
         return new Rotation(new Quaternion(1, 0, 0, 0));
     }
-    u() { return this.transform(Vec3.ex()); }
-    v() { return this.transform(Vec3.ey()); }
-    n() { return this.transform(Vec3.ez()); }
+    u() { return this.transform(Vec3.EX); }
+    v() { return this.transform(Vec3.EY); }
+    n() { return this.transform(Vec3.EZ); }
     clone() {
         return new Rotation(this.q.clone());
     }
@@ -353,7 +370,7 @@ export class RigidTrans {
         this.t = t;
     }
     static unit() {
-        return new RigidTrans(Rotation.unit(), Vec3.zero());
+        return new RigidTrans(Rotation.unit(), Vec3.ZERO);
     }
     clone() {
         return new RigidTrans(this.r.clone(), this.t.clone());
@@ -368,9 +385,9 @@ export class RigidTrans {
     }
     toMatrix(): Matrix4 {
         let mat = this.r.toMatrix();
-        mat.array()[12] = this.t.x;
-        mat.array()[13] = this.t.y;
-        mat.array()[14] = this.t.z;
+        mat.array[12] = this.t.x;
+        mat.array[13] = this.t.y;
+        mat.array[14] = this.t.z;
         return mat;
     }
 }

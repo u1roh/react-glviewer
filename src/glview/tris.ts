@@ -200,17 +200,17 @@ class TrianglesDrawer implements glview.Drawable {
 export default class Triangles implements glview.DrawableSource {
     private readonly points: Float32Array;
     private readonly normals: Float32Array;
-    private readonly boundary: vec.Sphere;
+    private readonly boundary: vec.Sphere | undefined;
     private readonly entity: object;
     constructor(points: Float32Array, normals: Float32Array, entity: object | null = null) {
         this.points = points;
         this.normals = normals;
-        this.boundary = vec.Box3.boundaryOf(points).boundingSphere();
+        this.boundary = vec.Box3.boundaryOf(points)?.boundingSphere();
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
         new TrianglesDrawer(gl, this.points, this.normals, this.entity));
-    boundingSphere(): vec.Sphere {
+    boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
     triangleCount() {

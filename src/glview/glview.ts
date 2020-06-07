@@ -34,7 +34,7 @@ export interface RenderingContext {
 
 export class Camera {
     private static orthoMatrix(volume: vec.Box3): vec.Matrix4 {
-        const c = volume.center();
+        const c = volume.center;
         const w = volume.x.upper - c.x;
         const h = volume.y.upper - c.y;
         const d = volume.z.upper - c.z;
@@ -187,7 +187,7 @@ export interface Drawable extends Dispose {
 
 export interface DrawableSource {
     getDrawer(gl: WebGLRenderingContext): Drawable;
-    boundingSphere(): vec.Sphere;
+    boundingSphere(): vec.Sphere | undefined;
 }
 
 class DrawableList implements Drawable {
@@ -218,10 +218,16 @@ export class SceneGraph implements DrawableSource {
     }
     boundingSphere(): vec.Sphere {
         if (this.world === null) {
-            this.world = this.nodes.length === 0 ? vec.Sphere.unit() :
-                vec.Sphere.boundaryOfArray(this.nodes.map(node => node.boundingSphere()));
+            const spheres = this.nodes.map(node => node.boundingSphere()).filter(s => s !== undefined).map(s => s!);
+            this.world = spheres.length === 0 ? vec.Sphere.unit() : vec.Sphere.boundaryOfArray(spheres);
         }
         return this.world;
+    }
+    get nodeCount(): number {
+        return this.nodes.length
+    }
+    getNode(i: number): DrawableSource {
+        return this.nodes[i];
     }
     setNodes(nodes: DrawableSource[]) {
         this.nodes = nodes;
@@ -324,8 +330,8 @@ export class GLView {
             canvasWidth: this.canvas.width,
             canvasHeight: this.canvas.height,
             camera: this.camera,
-            glUniformProjectionMatrix: location => this.gl.uniformMatrix4fv(location, false, projMatrix.array()),
-            glUniformModelViewMatrix: location => this.gl.uniformMatrix4fv(location, false, viewMatrix.array())
+            glUniformProjectionMatrix: location => this.gl.uniformMatrix4fv(location, false, projMatrix.array),
+            glUniformModelViewMatrix: location => this.gl.uniformMatrix4fv(location, false, viewMatrix.array)
         }
     }
     lengthPerPixel() {

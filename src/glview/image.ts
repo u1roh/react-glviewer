@@ -128,8 +128,8 @@ export class ImageBoard implements glview.DrawableSource {
         this.pos = pos;
         this.area = area;
         this.boundary = new vec.Sphere(
-            pos.transform(area.center().to3d()),
-            area.lower().sub(area.center()).length()
+            pos.transform(area.center.to3d()),
+            area.lower.sub(area.center).length()
         );
         this.entity = entity === null ? this : entity;
     }
