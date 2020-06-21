@@ -42,7 +42,7 @@ export class Camera {
             1 / w, 0, 0, 0,
             0, 1 / h, 0, 0,
             0, 0, 1 / d, 0,
-            -c.x / w, -c.y / w, -c.z / d, 1
+            -c.x / w, -c.y / h, -c.z / d, 1
         ]);
     }
     private static makeProjMatrix(depth: vec.Interval, scale: number, canvasWidth: number, canvasHeight: number): vec.Matrix4 {
