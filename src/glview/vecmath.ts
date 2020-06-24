@@ -161,7 +161,11 @@ export class Sphere {
 export class Interval {
     readonly lower: number;
     readonly upper: number;
+    static new(lower: number, upper: number): Interval | undefined {
+        return lower <= upper ? new Interval(lower, upper) : undefined;
+    }
     constructor(lower: number, upper: number) {
+        if (lower > upper) throw "invalid interval";
         this.lower = lower;
         this.upper = upper;
     }
@@ -182,8 +186,8 @@ export class IntervalBuilder {
         if (x < this.lower) this.lower = x;
         if (x > this.upper) this.upper = x;
     }
-    build(): Interval | null {
-        return this.lower < this.upper ? new Interval(this.lower, this.upper) : null;
+    build(): Interval | undefined {
+        return Interval.new(this.lower, this.upper)
     }
 }
 
@@ -193,6 +197,9 @@ export class Box2 {
     constructor(x: Interval, y: Interval) {
         this.x = x;
         this.y = y;
+    }
+    static new(x?: Interval, y?: Interval): Box2 | undefined {
+        return (x && y) ? new Box2(x, y) : undefined;
     }
     get ll(): Vec2 { return new Vec2(this.x.lower, this.y.lower); }
     get ul(): Vec2 { return new Vec2(this.x.upper, this.y.lower); }
@@ -225,6 +232,9 @@ export class Box3 {
         this.y = y;
         this.z = z;
     }
+    static new(x?: Interval, y?: Interval, z?: Interval): Box3 | undefined {
+        return (x && y && z) ? new Box3(x, y, z) : undefined;
+    }
     get lower(): Vec3 {
         return new Vec3(this.x.lower, this.y.lower, this.z.lower);
     }
@@ -239,21 +249,34 @@ export class Box3 {
         const radius = this.upper.sub(center).length();
         return new Sphere(center, radius);
     }
-    static boundaryOf(points: Float32Array): Box3 | null {
-        const bx = new IntervalBuilder();
-        const by = new IntervalBuilder();
-        const bz = new IntervalBuilder();
+    static boundaryOf(points: Float32Array): Box3 | undefined {
+        const builder = new Box3Builder();
         for (let i = 0; i < points.length; i += 3) {
-            bx.add(points[i + 0]);
-            by.add(points[i + 1]);
-            bz.add(points[i + 2]);
+            builder.add(points[i + 0], points[i + 1], points[i + 2]);
         }
-        const [x, y, z] = [bx.build(), by.build(), bz.build()];
-        if (x !== null && y !== null && z !== null) {
-            return new Box3(x, y, z);
+        return builder.build();
+    }
+}
+
+export class Box3Builder {
+    private readonly x = new IntervalBuilder();
+    private readonly y = new IntervalBuilder();
+    private readonly z = new IntervalBuilder();
+    add(x: number, y: number, z: number): void;
+    add(v: Vec3): void;
+    add(x: number | Vec3, y?: number, z?: number) {
+        if (typeof x === 'number') {
+            this.x.add(x);
+            this.y.add(y || 0);
+            this.z.add(z || 0);
         } else {
-            return null;
+            this.x.add(x.x);
+            this.x.add(x.y);
+            this.x.add(x.z);
         }
+    }
+    build(): Box3 | undefined {
+        return Box3.new(this.x.build(), this.y.build(), this.z.build());
     }
 }
 
