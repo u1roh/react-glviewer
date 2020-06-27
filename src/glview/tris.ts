@@ -88,6 +88,13 @@ void main(){
 }
 `;
 
+interface VertexBuffer extends glview.Dispose {
+    gl: WebGLRenderingContext;
+    vertexCount: number;
+    enablePoints(atrPosition: number): void;
+    enableNormals(atrPosition: number): void;
+}
+
 class TrianglesShadingProgram {
     private readonly gl: WebGLRenderingContext;
     private readonly program: WebGLProgram;
@@ -103,39 +110,15 @@ class TrianglesShadingProgram {
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
     }
-    draw(rc: glview.RenderingContext, points: WebGLBuffer, normals: WebGLBuffer, count: number) {
-        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+    draw(rc: glview.RenderingContext, buffer: VertexBuffer) {
+        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
         rc.glUniformProjectionMatrix(this.uniProjMatrix);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, points);
-        gl.enableVertexAttribArray(this.atrPosition);
-        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 0, 0);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, normals);
-        gl.enableVertexAttribArray(this.atrNormal);
-        gl.vertexAttribPointer(this.atrNormal, 3, gl.FLOAT, true, 0, 0);
-
-        gl.drawArrays(gl.TRIANGLES, 0, count);
-    }
-    drawInterleaved(rc: glview.RenderingContext, pointNormals: WebGLBuffer, count: number) {
-        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
-        const gl = rc.gl;
-        gl.useProgram(this.program);
-        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
-        rc.glUniformProjectionMatrix(this.uniProjMatrix);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, pointNormals);
-        gl.enableVertexAttribArray(this.atrPosition);
-        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 4 * 6, 0);
-
-        //gl.bindBuffer(gl.ARRAY_BUFFER, pointNormals);
-        gl.enableVertexAttribArray(this.atrNormal);
-        gl.vertexAttribPointer(this.atrNormal, 3, gl.FLOAT, true, 4 * 6, 4 * 3);
-
-        gl.drawArrays(gl.TRIANGLES, 0, count);
+        buffer.enablePoints(this.atrPosition);
+        buffer.enableNormals(this.atrNormal);
+        gl.drawArrays(gl.TRIANGLES, 0, buffer.vertexCount);
     }
 }
 
@@ -154,33 +137,15 @@ class TrianglesNoShadingProgram {
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
         this.uniColor = gl.getUniformLocation(this.program, "color")!;
     }
-    draw(rc: glview.RenderingContext, points: WebGLBuffer, count: number, color3f: glview.Color3) {
-        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+    draw(rc: glview.RenderingContext, buffer: VertexBuffer, color3f: glview.Color3) {
+        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
         gl.uniform3f(this.uniColor, color3f.r, color3f.g, color3f.b);
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
         rc.glUniformProjectionMatrix(this.uniProjMatrix);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, points);
-        gl.enableVertexAttribArray(this.atrPosition);
-        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 0, 0);
-
-        gl.drawArrays(gl.TRIANGLES, 0, count);
-    }
-    drawInterleaved(rc: glview.RenderingContext, pointNormals: WebGLBuffer, count: number, color3f: glview.Color3) {
-        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
-        const gl = rc.gl;
-        gl.useProgram(this.program);
-        gl.uniform3f(this.uniColor, color3f.r, color3f.g, color3f.b);
-        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
-        rc.glUniformProjectionMatrix(this.uniProjMatrix);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, pointNormals);
-        gl.enableVertexAttribArray(this.atrPosition);
-        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 4 * 6, 0);
-
-        gl.drawArrays(gl.TRIANGLES, 0, count);
+        buffer.enablePoints(this.atrPosition);
+        gl.drawArrays(gl.TRIANGLES, 0, buffer.vertexCount);
     }
 }
 
@@ -194,41 +159,88 @@ class TrianglesDrawerPrograms {
         this.shading = new TrianglesShadingProgram(gl);
         this.noShading = new TrianglesNoShadingProgram(gl);
     }
-    createBuffer(data: Float32Array): WebGLBuffer {
-        const buf = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buf);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, data, this.gl.STATIC_DRAW);
-        return buf!;
-    }
 }
 
 class TrianglesDrawer implements glview.Drawable {
     private readonly programs: TrianglesDrawerPrograms;
-    private readonly count: number;
-    private readonly points: WebGLBuffer;
-    private readonly normals: WebGLBuffer;
+    private readonly buffer: VertexBuffer;
     private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, points: Float32Array, normals: Float32Array, entity: object) {
-        if (points.length !== normals.length) throw new Error("points.length != normals.length");
+    constructor(gl: WebGLRenderingContext, buffer: VertexBuffer, entity: object) {
         this.programs = TrianglesDrawerPrograms.get(gl);
-        this.count = points.length / 3;
-        this.points = this.programs.createBuffer(points);
-        this.normals = this.programs.createBuffer(normals);
+        this.buffer = buffer;
         this.entity = entity;
     }
     dispose() {
-        this.programs.gl.deleteBuffer(this.points);
-        this.programs.gl.deleteBuffer(this.normals);
+        this.buffer.dispose();
     }
     draw(rc: glview.RenderingContext) {
-        this.programs.shading.draw(rc, this.points, this.normals, this.count);
+        this.programs.shading.draw(rc, this.buffer);
     }
     drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.programs.noShading.draw(rc, this.points, this.count, session.emitColor3f(this.entity));
+        this.programs.noShading.draw(rc, this.buffer, session.emitColor3f(this.entity));
     }
 }
 
-export class Triangles1 implements glview.DrawableSource {
+function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffer | null {
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    return buf;
+}
+
+class PointsAndNormals implements VertexBuffer {
+    readonly gl: WebGLRenderingContext;
+    readonly points: WebGLBuffer | null;
+    readonly normals: WebGLBuffer | null;
+    readonly vertexCount: number;
+    constructor(gl: WebGLRenderingContext, points: Float32Array, normals: Float32Array) {
+        if (points.length !== normals.length) throw new Error("points.length != normals.length");
+        this.gl = gl;
+        this.points = createBuffer(gl, points);
+        this.normals = createBuffer(gl, normals);
+        this.vertexCount = points.length / 3;
+    }
+    dispose() {
+        this.gl.deleteBuffer(this.points);
+        this.gl.deleteBuffer(this.normals);
+    }
+    enablePoints(atrPosition: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.points);
+        this.gl.enableVertexAttribArray(atrPosition);
+        this.gl.vertexAttribPointer(atrPosition, 3, this.gl.FLOAT, false, 0, 0);
+    }
+    enableNormals(atrNormal: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normals);
+        this.gl.enableVertexAttribArray(atrNormal);
+        this.gl.vertexAttribPointer(atrNormal, 3, this.gl.FLOAT, true, 0, 0);
+    }
+}
+
+class InterleavedPointNormals implements VertexBuffer {
+    readonly gl: WebGLRenderingContext;
+    readonly pointNormals: WebGLBuffer | null;
+    readonly vertexCount: number;
+    constructor(gl: WebGLRenderingContext, pointNormals: Float32Array) {
+        this.gl = gl;
+        this.pointNormals = createBuffer(gl, pointNormals);
+        this.vertexCount = pointNormals.length / 6;
+    }
+    dispose() {
+        this.gl.deleteBuffer(this.pointNormals);
+    }
+    enablePoints(atrPosition: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointNormals);
+        this.gl.enableVertexAttribArray(atrPosition);
+        this.gl.vertexAttribPointer(atrPosition, 3, this.gl.FLOAT, false, 4 * 6, 0);
+    }
+    enableNormals(atrNormal: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointNormals);
+        this.gl.enableVertexAttribArray(atrNormal);
+        this.gl.vertexAttribPointer(atrNormal, 3, this.gl.FLOAT, true, 4 * 6, 4 * 3);
+    }
+}
+
+export class TrianglesBy2Arrays implements glview.DrawableSource {
     private readonly points: Float32Array;
     private readonly normals: Float32Array;
     private readonly boundary: vec.Sphere | undefined;
@@ -240,7 +252,7 @@ export class Triangles1 implements glview.DrawableSource {
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer(gl, this.points, this.normals, this.entity));
+        new TrianglesDrawer(gl, new PointsAndNormals(gl, this.points, this.normals), this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
@@ -271,30 +283,6 @@ export class Triangles1 implements glview.DrawableSource {
     }
 }
 
-// ---------------------------------------------------------------------
-
-class TrianglesDrawer2 implements glview.Drawable {
-    private readonly programs: TrianglesDrawerPrograms;
-    private readonly count: number;
-    private readonly pointNormals: WebGLBuffer;
-    private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, pointNormals: Float32Array, entity: object) {
-        this.programs = TrianglesDrawerPrograms.get(gl);
-        this.count = pointNormals.length / 6;
-        this.pointNormals = this.programs.createBuffer(pointNormals);
-        this.entity = entity;
-    }
-    dispose() {
-        this.programs.gl.deleteBuffer(this.pointNormals);
-    }
-    draw(rc: glview.RenderingContext) {
-        this.programs.shading.drawInterleaved(rc, this.pointNormals, this.count);
-    }
-    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.programs.noShading.drawInterleaved(rc, this.pointNormals, this.count, session.emitColor3f(this.entity));
-    }
-}
-
 export default class Triangles implements glview.DrawableSource {
     private readonly pointNormals: Float32Array;
     private readonly boundary: vec.Sphere | undefined;
@@ -310,7 +298,7 @@ export default class Triangles implements glview.DrawableSource {
         this.boundary = builder.build()?.boundingSphere();
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer2(gl, this.pointNormals, this.entity));
+        new TrianglesDrawer(gl, new InterleavedPointNormals(gl, this.pointNormals), this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
