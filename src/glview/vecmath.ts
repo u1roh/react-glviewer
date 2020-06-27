@@ -271,8 +271,8 @@ export class Box3Builder {
             this.z.add(z || 0);
         } else {
             this.x.add(x.x);
-            this.x.add(x.y);
-            this.x.add(x.z);
+            this.y.add(x.y);
+            this.z.add(x.z);
         }
     }
     build(): Box3 | undefined {

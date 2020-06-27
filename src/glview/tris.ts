@@ -120,6 +120,23 @@ class TrianglesShadingProgram {
 
         gl.drawArrays(gl.TRIANGLES, 0, count);
     }
+    drawInterleaved(rc: glview.RenderingContext, pointNormals: WebGLBuffer, count: number) {
+        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        const gl = rc.gl;
+        gl.useProgram(this.program);
+        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
+        rc.glUniformProjectionMatrix(this.uniProjMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, pointNormals);
+        gl.enableVertexAttribArray(this.atrPosition);
+        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 4 * 6, 0);
+
+        //gl.bindBuffer(gl.ARRAY_BUFFER, pointNormals);
+        gl.enableVertexAttribArray(this.atrNormal);
+        gl.vertexAttribPointer(this.atrNormal, 3, gl.FLOAT, true, 4 * 6, 4 * 3);
+
+        gl.drawArrays(gl.TRIANGLES, 0, count);
+    }
 }
 
 class TrianglesNoShadingProgram {
@@ -148,6 +165,20 @@ class TrianglesNoShadingProgram {
         gl.bindBuffer(gl.ARRAY_BUFFER, points);
         gl.enableVertexAttribArray(this.atrPosition);
         gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.TRIANGLES, 0, count);
+    }
+    drawInterleaved(rc: glview.RenderingContext, pointNormals: WebGLBuffer, count: number, color3f: glview.Color3) {
+        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        const gl = rc.gl;
+        gl.useProgram(this.program);
+        gl.uniform3f(this.uniColor, color3f.r, color3f.g, color3f.b);
+        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
+        rc.glUniformProjectionMatrix(this.uniProjMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, pointNormals);
+        gl.enableVertexAttribArray(this.atrPosition);
+        gl.vertexAttribPointer(this.atrPosition, 3, gl.FLOAT, false, 4 * 6, 0);
 
         gl.drawArrays(gl.TRIANGLES, 0, count);
     }
@@ -197,7 +228,7 @@ class TrianglesDrawer implements glview.Drawable {
     }
 }
 
-export default class Triangles implements glview.DrawableSource {
+export class Triangles1 implements glview.DrawableSource {
     private readonly points: Float32Array;
     private readonly normals: Float32Array;
     private readonly boundary: vec.Sphere | undefined;
@@ -234,6 +265,79 @@ export default class Triangles implements glview.DrawableSource {
                 points[3 * (2 * idx + 1) + 0] = this.points[3 * next + 0];
                 points[3 * (2 * idx + 1) + 1] = this.points[3 * next + 1];
                 points[3 * (2 * idx + 1) + 2] = this.points[3 * next + 2];
+            }
+        }
+        return new Lines(points, this.entity);
+    }
+}
+
+// ---------------------------------------------------------------------
+
+class TrianglesDrawer2 implements glview.Drawable {
+    private readonly programs: TrianglesDrawerPrograms;
+    private readonly count: number;
+    private readonly pointNormals: WebGLBuffer;
+    private readonly entity: object;
+    constructor(gl: WebGLRenderingContext, pointNormals: Float32Array, entity: object) {
+        this.programs = TrianglesDrawerPrograms.get(gl);
+        this.count = pointNormals.length / 6;
+        this.pointNormals = this.programs.createBuffer(pointNormals);
+        this.entity = entity;
+    }
+    dispose() {
+        this.programs.gl.deleteBuffer(this.pointNormals);
+    }
+    draw(rc: glview.RenderingContext) {
+        this.programs.shading.drawInterleaved(rc, this.pointNormals, this.count);
+    }
+    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
+        this.programs.noShading.drawInterleaved(rc, this.pointNormals, this.count, session.emitColor3f(this.entity));
+    }
+}
+
+export default class Triangles implements glview.DrawableSource {
+    private readonly pointNormals: Float32Array;
+    private readonly boundary: vec.Sphere | undefined;
+    private readonly entity: object;
+    constructor(pointNormals: Float32Array, entity: object | null = null) {
+        this.pointNormals = pointNormals;
+        this.entity = entity === null ? this : entity;
+
+        const builder = new vec.Box3Builder();
+        for (let i = 0; i < this.pointCount; ++i) {
+            builder.add(this.getPoint(i));
+        }
+        this.boundary = builder.build()?.boundingSphere();
+    }
+    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
+        new TrianglesDrawer2(gl, this.pointNormals, this.entity));
+    boundingSphere(): vec.Sphere | undefined {
+        return this.boundary;
+    }
+    get pointCount() {
+        return this.pointNormals.length / 6;
+    }
+    getPoint(i: number): vec.Vec3 {
+        return new vec.Vec3(this.pointNormals[6 * i + 0], this.pointNormals[6 * i + 1], this.pointNormals[6 * i + 2]);
+    }
+    get triangleCount() {
+        return this.pointNormals.length / 6 / 3;
+    }
+    getTriangle(i: number) {
+        return new vec.Triangle(this.getPoint(3 * i + 0), this.getPoint(3 * i + 1), this.getPoint(3 * i + 2));
+    }
+    toWireframe(): Lines {
+        const points = new Float32Array(this.pointNormals.length);
+        for (let i = 0; i < this.triangleCount; ++i) {
+            for (let j = 0; j < 3; ++j) {
+                const idx = 3 * i + j;
+                const next = 3 * i + (j + 1) % 3;
+                points[3 * (2 * idx + 0) + 0] = this.pointNormals[6 * idx + 0];
+                points[3 * (2 * idx + 0) + 1] = this.pointNormals[6 * idx + 1];
+                points[3 * (2 * idx + 0) + 2] = this.pointNormals[6 * idx + 2];
+                points[3 * (2 * idx + 1) + 0] = this.pointNormals[6 * next + 0];
+                points[3 * (2 * idx + 1) + 1] = this.pointNormals[6 * next + 1];
+                points[3 * (2 * idx + 1) + 2] = this.pointNormals[6 * next + 2];
             }
         }
         return new Lines(points, this.entity);
