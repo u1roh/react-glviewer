@@ -1,4 +1,5 @@
 import Triangles from './tris';
+import * as points from './points';
 
 class ArrayBuf {
     public static readFile(file: File): Promise<ArrayBuffer> {
@@ -58,7 +59,7 @@ export class STLFormat {
                 pointNormals[idx + 5] = nz;
             }
         }
-        return new Triangles(pointNormals);
+        return new Triangles(new points.PointNormals(pointNormals));
     }
 
     public static async readFile(file: File): Promise<Triangles> {

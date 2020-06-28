@@ -2,6 +2,7 @@ import * as vec from './vecmath';
 import * as glview from './glview';
 import * as shaders from './shaders';
 import * as vbo from './vbo';
+import * as points from './points';
 import Lines from './lines';
 
 class TrianglesDrawer implements glview.Drawable {
@@ -70,48 +71,38 @@ export class TrianglesBy2Arrays implements glview.DrawableSource {
 }
 
 export default class Triangles implements glview.DrawableSource {
-    private readonly pointNormals: Float32Array;
-    private readonly boundary: vec.Sphere | undefined;
+    readonly vertices: points.PointNormals;
     private readonly entity: object;
-    constructor(pointNormals: Float32Array, entity: object | null = null) {
-        this.pointNormals = pointNormals;
+    constructor(vertices: points.PointNormals, entity: object | null = null) {
+        this.vertices = vertices;
         this.entity = entity === null ? this : entity;
-
-        const builder = new vec.Box3Builder();
-        for (let i = 0; i < this.pointCount; ++i) {
-            builder.add(this.getPoint(i));
-        }
-        this.boundary = builder.build()?.boundingSphere();
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer(gl, new vbo.InterleavedPointNormals(gl, this.pointNormals), this.entity));
+        new TrianglesDrawer(gl, this.vertices.createVertexBuffer(gl), this.entity));
     boundingSphere(): vec.Sphere | undefined {
-        return this.boundary;
-    }
-    get pointCount() {
-        return this.pointNormals.length / 6;
-    }
-    getPoint(i: number): vec.Vec3 {
-        return new vec.Vec3(this.pointNormals[6 * i + 0], this.pointNormals[6 * i + 1], this.pointNormals[6 * i + 2]);
+        return this.vertices.boundingSphere();
     }
     get triangleCount() {
-        return this.pointNormals.length / 6 / 3;
+        return this.vertices.count / 3;
     }
     getTriangle(i: number) {
-        return new vec.Triangle(this.getPoint(3 * i + 0), this.getPoint(3 * i + 1), this.getPoint(3 * i + 2));
+        return new vec.Triangle(
+            this.vertices.getPoint(3 * i + 0),
+            this.vertices.getPoint(3 * i + 1),
+            this.vertices.getPoint(3 * i + 2));
     }
     toWireframe(): Lines {
-        const points = new Float32Array(this.pointNormals.length);
+        const points = new Float32Array(2 * 3 * this.vertices.count);
         for (let i = 0; i < this.triangleCount; ++i) {
             for (let j = 0; j < 3; ++j) {
                 const idx = 3 * i + j;
                 const next = 3 * i + (j + 1) % 3;
-                points[3 * (2 * idx + 0) + 0] = this.pointNormals[6 * idx + 0];
-                points[3 * (2 * idx + 0) + 1] = this.pointNormals[6 * idx + 1];
-                points[3 * (2 * idx + 0) + 2] = this.pointNormals[6 * idx + 2];
-                points[3 * (2 * idx + 1) + 0] = this.pointNormals[6 * next + 0];
-                points[3 * (2 * idx + 1) + 1] = this.pointNormals[6 * next + 1];
-                points[3 * (2 * idx + 1) + 2] = this.pointNormals[6 * next + 2];
+                points[3 * (2 * idx + 0) + 0] = this.vertices.data[6 * idx + 0];
+                points[3 * (2 * idx + 0) + 1] = this.vertices.data[6 * idx + 1];
+                points[3 * (2 * idx + 0) + 2] = this.vertices.data[6 * idx + 2];
+                points[3 * (2 * idx + 1) + 0] = this.vertices.data[6 * next + 0];
+                points[3 * (2 * idx + 1) + 1] = this.vertices.data[6 * next + 1];
+                points[3 * (2 * idx + 1) + 2] = this.vertices.data[6 * next + 2];
             }
         }
         return new Lines(points, this.entity);
