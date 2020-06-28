@@ -59,7 +59,7 @@ export class STLFormat {
                 pointNormals[idx + 5] = nz;
             }
         }
-        return new Triangles(new points.PointNormals(pointNormals));
+        return new Triangles(points.createInterleavedPointNormals(pointNormals));
     }
 
     public static async readFile(file: File): Promise<Triangles> {
