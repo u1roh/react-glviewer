@@ -23,16 +23,18 @@ varying vec3 fPos;
 varying vec3 fNrm;
 void main(){
     vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
-    float shininess = 1.0;
+    float shininess = 2.0;
     float ambient = 0.1;
     vec3 col = vec3(0.0, 0.8, 0.0);
 
     vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
     vec3 nrm = normalize(fNrm);
+    vec3 refDir = reflect(-light, nrm);
     float diffuse = max(dot(light, nrm), 0.0);
-    float specular = 0.0; // pow(max(dot(nrm, normalize(light - normalize(fPos))), 0.0), shininess);
+    //float specular = 0.0;
+    float specular = pow(max(refDir.z, 0.0), shininess);
 
-    gl_FragColor = vec4((diffuse + specular + ambient) * col, 1);
+    gl_FragColor = vec4((diffuse + ambient) * col + vec3(specular), 1);
 }
 `;
 
@@ -58,16 +60,18 @@ in vec3 fNrm;
 out vec4 color;
 void main(){
     vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
-    float shininess = 1.0;
+    float shininess = 2.0;
     float ambient = 0.1;
     vec3 col = vec3(0.0, 0.8, 0.0);
 
     vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
     vec3 nrm = normalize(fNrm);
+    vec3 refDir = reflect(-light, nrm);
     float diffuse = max(dot(light, nrm), 0.0);
-    float specular = 0.0; // pow(max(dot(nrm, normalize(light - normalize(fPos))), 0.0), shininess);
+    //float specular = 0.0;
+    float specular = pow(max(refDir.z, 0.0), shininess);
 
-    color = vec4((diffuse + specular + ambient) * col, 1);
+    color = vec4((diffuse + ambient) * col + vec3(specular), 1);
 }
 `;
 
