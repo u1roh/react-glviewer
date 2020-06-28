@@ -1,14 +1,15 @@
 import * as vec from './vecmath';
 import * as glview from './glview';
 import * as shaders from './shaders';
+import * as vbo from './vbo';
 import Lines from './lines';
 
 class TrianglesDrawer implements glview.Drawable {
     private readonly shadingProgram: shaders.PointNormalsProgram;
     private readonly selectionProgram: shaders.PointsProgram;
-    private readonly buffer: shaders.VertexBuffer;
+    private readonly buffer: vbo.VertexNormalBuffer;
     private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, buffer: shaders.VertexBuffer, entity: object) {
+    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexNormalBuffer, entity: object) {
         this.shadingProgram = shaders.PointNormalsProgram.get(gl);
         this.selectionProgram = shaders.PointsProgram.get(gl);
         this.buffer = buffer;
@@ -25,65 +26,6 @@ class TrianglesDrawer implements glview.Drawable {
     }
 }
 
-function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffer | null {
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    return buf;
-}
-
-class PointsAndNormals implements shaders.VertexBuffer {
-    readonly gl: WebGLRenderingContext;
-    readonly points: WebGLBuffer | null;
-    readonly normals: WebGLBuffer | null;
-    readonly vertexCount: number;
-    constructor(gl: WebGLRenderingContext, points: Float32Array, normals: Float32Array) {
-        if (points.length !== normals.length) throw new Error("points.length != normals.length");
-        this.gl = gl;
-        this.points = createBuffer(gl, points);
-        this.normals = createBuffer(gl, normals);
-        this.vertexCount = points.length / 3;
-    }
-    dispose() {
-        this.gl.deleteBuffer(this.points);
-        this.gl.deleteBuffer(this.normals);
-    }
-    enablePoints(atrPosition: number): void {
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.points);
-        this.gl.enableVertexAttribArray(atrPosition);
-        this.gl.vertexAttribPointer(atrPosition, 3, this.gl.FLOAT, false, 0, 0);
-    }
-    enableNormals(atrNormal: number): void {
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normals);
-        this.gl.enableVertexAttribArray(atrNormal);
-        this.gl.vertexAttribPointer(atrNormal, 3, this.gl.FLOAT, true, 0, 0);
-    }
-}
-
-class InterleavedPointNormals implements shaders.VertexBuffer {
-    readonly gl: WebGLRenderingContext;
-    readonly pointNormals: WebGLBuffer | null;
-    readonly vertexCount: number;
-    constructor(gl: WebGLRenderingContext, pointNormals: Float32Array) {
-        this.gl = gl;
-        this.pointNormals = createBuffer(gl, pointNormals);
-        this.vertexCount = pointNormals.length / 6;
-    }
-    dispose() {
-        this.gl.deleteBuffer(this.pointNormals);
-    }
-    enablePoints(atrPosition: number): void {
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointNormals);
-        this.gl.enableVertexAttribArray(atrPosition);
-        this.gl.vertexAttribPointer(atrPosition, 3, this.gl.FLOAT, false, 4 * 6, 0);
-    }
-    enableNormals(atrNormal: number): void {
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointNormals);
-        this.gl.enableVertexAttribArray(atrNormal);
-        this.gl.vertexAttribPointer(atrNormal, 3, this.gl.FLOAT, true, 4 * 6, 4 * 3);
-    }
-}
-
 export class TrianglesBy2Arrays implements glview.DrawableSource {
     private readonly points: Float32Array;
     private readonly normals: Float32Array;
@@ -96,7 +38,7 @@ export class TrianglesBy2Arrays implements glview.DrawableSource {
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer(gl, new PointsAndNormals(gl, this.points, this.normals), this.entity));
+        new TrianglesDrawer(gl, new vbo.PointsAndNormals(gl, this.points, this.normals), this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
@@ -142,7 +84,7 @@ export default class Triangles implements glview.DrawableSource {
         this.boundary = builder.build()?.boundingSphere();
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer(gl, new InterleavedPointNormals(gl, this.pointNormals), this.entity));
+        new TrianglesDrawer(gl, new vbo.InterleavedPointNormals(gl, this.pointNormals), this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }

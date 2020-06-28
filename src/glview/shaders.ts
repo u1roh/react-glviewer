@@ -1,12 +1,5 @@
 import * as glview from './glview';
-
-
-export interface VertexBuffer extends glview.Dispose {
-    gl: WebGLRenderingContext;
-    vertexCount: number;
-    enablePoints(atrPosition: number): void;
-    enableNormals(atrPosition: number): void;
-}
+import * as vbo from './vbo';
 
 export class PointsProgram {
     static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PointsProgram(gl));
@@ -37,7 +30,7 @@ export class PointsProgram {
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
         this.uniColor = gl.getUniformLocation(this.program, "color")!;
     }
-    draw(rc: glview.RenderingContext, buffer: VertexBuffer, mode: number, color3f: glview.Color3) {
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexBuffer, mode: number, color3f: glview.Color3) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("PointsProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
@@ -132,7 +125,7 @@ export class PointNormalsProgram {
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
     }
-    draw(rc: glview.RenderingContext, buffer: VertexBuffer, mode: number) {
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
