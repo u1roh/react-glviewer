@@ -5,28 +5,6 @@ import * as vbo from './vbo';
 import * as points from './points';
 import Lines from './lines';
 
-class TrianglesDrawer implements glview.Drawable {
-    private readonly shadingProgram: shaders.PointNormalsProgram;
-    private readonly selectionProgram: shaders.PointsProgram;
-    private readonly buffer: vbo.VertexNormalBuffer;
-    private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexNormalBuffer, entity: object) {
-        this.shadingProgram = shaders.PointNormalsProgram.get(gl);
-        this.selectionProgram = shaders.PointsProgram.get(gl);
-        this.buffer = buffer;
-        this.entity = entity;
-    }
-    dispose() {
-        this.buffer.dispose();
-    }
-    draw(rc: glview.RenderingContext) {
-        this.shadingProgram.draw(rc, this.buffer, rc.gl.TRIANGLES);
-    }
-    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.selectionProgram.draw(rc, this.buffer, rc.gl.TRIANGLES, session.emitColor3f(this.entity));
-    }
-}
-
 export class TrianglesBy2Arrays implements glview.DrawableSource {
     private readonly points: Float32Array;
     private readonly normals: Float32Array;
@@ -39,7 +17,12 @@ export class TrianglesBy2Arrays implements glview.DrawableSource {
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer(gl, new vbo.PointsAndNormals(gl, this.points, this.normals), this.entity));
+        new shaders.VertexNormalsDrawer(
+            gl,
+            vbo.createPointsAndNormalsBuffer(gl, this.points, this.normals),
+            gl.TRIANGLES,
+            this.entity
+        ));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
@@ -78,7 +61,12 @@ export default class Triangles implements glview.DrawableSource {
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new TrianglesDrawer(gl, this.vertices.createVertexBuffer(gl), this.entity));
+        new shaders.VertexNormalsDrawer(
+            gl,
+            this.vertices.createVertexBuffer(gl),
+            gl.TRIANGLES,
+            this.entity
+        ));
     boundingSphere(): vec.Sphere | undefined {
         return this.vertices.boundingSphere();
     }

@@ -3,28 +3,6 @@ import * as glview from './glview';
 import * as vbo from './vbo';
 import * as shaders from './shaders';
 
-class PointsDrawer implements glview.Drawable {
-    private readonly shadingProgram: shaders.PointNormalsProgram;
-    private readonly selectionProgram: shaders.PointsProgram;
-    private readonly buffer: vbo.VertexNormalBuffer;
-    private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexNormalBuffer, entity: object) {
-        this.shadingProgram = shaders.PointNormalsProgram.get(gl);
-        this.selectionProgram = shaders.PointsProgram.get(gl);
-        this.buffer = buffer;
-        this.entity = entity;
-    }
-    dispose() {
-        this.buffer.dispose();
-    }
-    draw(rc: glview.RenderingContext) {
-        this.shadingProgram.draw(rc, this.buffer, rc.gl.POINTS);
-    }
-    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.selectionProgram.draw(rc, this.buffer, rc.gl.POINTS, session.emitColor3f(this.entity));
-    }
-}
-
 export class PointNormals implements glview.DrawableSource {
     readonly data: Float32Array;
     private readonly boundary: vec.Sphere | undefined;
@@ -39,12 +17,12 @@ export class PointNormals implements glview.DrawableSource {
         this.boundary = builder.build()?.boundingSphere();
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new PointsDrawer(gl, this.createVertexBuffer(gl), this.entity));
+        new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), gl.POINTS, this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
     createVertexBuffer(gl: WebGLRenderingContext): vbo.VertexNormalBuffer {
-        return new vbo.InterleavedPointNormals(gl, this.data);
+        return vbo.createInterleavedPointNormalsBuffer(gl, this.data);
     }
     get count(): number {
         return this.data.length / 6;

@@ -10,6 +10,21 @@ export interface VertexNormalBuffer extends VertexBuffer {
     enableNormals(atrPosition: number): void;
 }
 
+export function createPointsAndNormalsBuffer(
+    gl: WebGLRenderingContext,
+    points: Float32Array,
+    normals: Float32Array
+): VertexNormalBuffer {
+    return new PointsAndNormals(gl, points, normals);
+}
+
+export function createInterleavedPointNormalsBuffer(
+    gl: WebGLRenderingContext,
+    pointNormals: Float32Array
+): VertexNormalBuffer {
+    return new InterleavedPointNormals(gl, pointNormals);
+}
+
 function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffer | null {
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -17,7 +32,7 @@ function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffe
     return buf;
 }
 
-export class PointsAndNormals implements VertexNormalBuffer {
+class PointsAndNormals implements VertexNormalBuffer {
     readonly gl: WebGLRenderingContext;
     readonly points: WebGLBuffer | null;
     readonly normals: WebGLBuffer | null;
@@ -45,7 +60,7 @@ export class PointsAndNormals implements VertexNormalBuffer {
     }
 }
 
-export class InterleavedPointNormals implements VertexNormalBuffer {
+class InterleavedPointNormals implements VertexNormalBuffer {
     readonly gl: WebGLRenderingContext;
     readonly pointNormals: WebGLBuffer | null;
     readonly vertexCount: number;

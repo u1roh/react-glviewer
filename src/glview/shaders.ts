@@ -126,7 +126,7 @@ export class PointNormalsProgram {
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
     }
     draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
-        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
@@ -134,5 +134,29 @@ export class PointNormalsProgram {
         buffer.enablePoints(this.atrPosition);
         buffer.enableNormals(this.atrNormal);
         gl.drawArrays(mode, 0, buffer.vertexCount);
+    }
+}
+
+export class VertexNormalsDrawer implements glview.Drawable {
+    private readonly shadingProgram: PointNormalsProgram;
+    private readonly selectionProgram: PointsProgram;
+    private readonly buffer: vbo.VertexNormalBuffer;
+    private readonly entity: object;
+    private readonly mode: number;
+    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexNormalBuffer, mode: number, entity: object) {
+        this.shadingProgram = PointNormalsProgram.get(gl);
+        this.selectionProgram = PointsProgram.get(gl);
+        this.buffer = buffer;
+        this.entity = entity;
+        this.mode = mode;
+    }
+    dispose() {
+        this.buffer.dispose();
+    }
+    draw(rc: glview.RenderingContext) {
+        this.shadingProgram.draw(rc, this.buffer, this.mode);
+    }
+    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
+        this.selectionProgram.draw(rc, this.buffer, this.mode, session.emitColor3f(this.entity));
     }
 }
