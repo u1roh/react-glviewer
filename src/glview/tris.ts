@@ -1,176 +1,16 @@
 import * as vec from './vecmath';
 import * as glview from './glview';
+import * as shaders from './shaders';
 import Lines from './lines';
 
-const vs = `
-attribute vec4 position;
-attribute vec3 normal;
-varying vec3 fPos;
-varying vec3 fNrm;
-uniform mat4 modelViewMatrix;
-uniform mat4 projMatrix;
-void main() {
-    vec4 pos = modelViewMatrix * position;
-    fPos = pos.xyz;
-    fNrm = mat3(modelViewMatrix) * normal;
-    gl_Position = projMatrix * pos;
-}
-`;
-
-const fs = `
-precision mediump float;
-varying vec3 fPos;
-varying vec3 fNrm;
-void main(){
-    vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
-    float shininess = 2.0;
-    float ambient = 0.1;
-    vec3 col = vec3(0.0, 0.8, 0.0);
-
-    vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
-    vec3 nrm = normalize(fNrm);
-    vec3 refDir = reflect(-light, nrm);
-    float diffuse = max(dot(light, nrm), 0.0);
-    //float specular = 0.0;
-    float specular = pow(max(refDir.z, 0.0), shininess);
-
-    gl_FragColor = vec4((diffuse + ambient) * col + vec3(specular), 1);
-}
-`;
-
-const vs2 = `#version 300 es
-in vec4 position;
-in vec3 normal;
-out vec3 fPos;
-out vec3 fNrm;
-uniform mat4 modelViewMatrix;
-uniform mat4 projMatrix;
-void main() {
-    vec4 pos = modelViewMatrix * position;
-    fPos = pos.xyz;
-    fNrm = mat3(modelViewMatrix) * normal;
-    gl_Position = projMatrix * pos;
-}
-`;
-
-const fs2 = `#version 300 es
-precision mediump float;
-in vec3 fPos;
-in vec3 fNrm;
-out vec4 color;
-void main(){
-    vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
-    float shininess = 2.0;
-    float ambient = 0.1;
-    vec3 col = vec3(0.0, 0.8, 0.0);
-
-    vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
-    vec3 nrm = normalize(fNrm);
-    vec3 refDir = reflect(-light, nrm);
-    float diffuse = max(dot(light, nrm), 0.0);
-    //float specular = 0.0;
-    float specular = pow(max(refDir.z, 0.0), shininess);
-
-    color = vec4((diffuse + ambient) * col + vec3(specular), 1);
-}
-`;
-
-const no_shading_vs = `
-attribute vec4 position;
-uniform mat4 modelViewMatrix;
-uniform mat4 projMatrix;
-void main() {
-    gl_Position = projMatrix * modelViewMatrix * position;
-}
-`;
-
-const no_shading_fs = `
-precision mediump float;
-uniform vec3 color;
-void main(){
-    gl_FragColor = vec4(color, 1);
-}
-`;
-
-interface VertexBuffer extends glview.Dispose {
-    gl: WebGLRenderingContext;
-    vertexCount: number;
-    enablePoints(atrPosition: number): void;
-    enableNormals(atrPosition: number): void;
-}
-
-class TrianglesShadingProgram {
-    private readonly gl: WebGLRenderingContext;
-    private readonly program: WebGLProgram;
-    private readonly atrPosition: number;
-    private readonly atrNormal: number;
-    private readonly uniModelViewMatrix: WebGLUniformLocation;
-    private readonly uniProjMatrix: WebGLUniformLocation;
-    constructor(gl: WebGLRenderingContext) {
-        this.gl = gl;
-        this.program = glview.isWebGL2(gl) ? glview.createProgram(gl, vs2, fs2) : glview.createProgram(gl, vs, fs);
-        this.atrPosition = gl.getAttribLocation(this.program, "position");
-        this.atrNormal = gl.getAttribLocation(this.program, "normal");
-        this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
-        this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
-    }
-    draw(rc: glview.RenderingContext, buffer: VertexBuffer) {
-        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
-        const gl = rc.gl;
-        gl.useProgram(this.program);
-        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
-        rc.glUniformProjectionMatrix(this.uniProjMatrix);
-        buffer.enablePoints(this.atrPosition);
-        buffer.enableNormals(this.atrNormal);
-        gl.drawArrays(gl.TRIANGLES, 0, buffer.vertexCount);
-    }
-}
-
-class TrianglesNoShadingProgram {
-    private readonly gl: WebGLRenderingContext;
-    private readonly program: WebGLProgram;
-    private readonly atrPosition: number;
-    private readonly uniModelViewMatrix: WebGLUniformLocation;
-    private readonly uniProjMatrix: WebGLUniformLocation;
-    private readonly uniColor: WebGLUniformLocation;
-    constructor(gl: WebGLRenderingContext) {
-        this.gl = gl;
-        this.program = glview.createProgram(gl, no_shading_vs, no_shading_fs);
-        this.atrPosition = gl.getAttribLocation(this.program, "position");
-        this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
-        this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
-        this.uniColor = gl.getUniformLocation(this.program, "color")!;
-    }
-    draw(rc: glview.RenderingContext, buffer: VertexBuffer, color3f: glview.Color3) {
-        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
-        const gl = rc.gl;
-        gl.useProgram(this.program);
-        gl.uniform3f(this.uniColor, color3f.r, color3f.g, color3f.b);
-        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
-        rc.glUniformProjectionMatrix(this.uniProjMatrix);
-        buffer.enablePoints(this.atrPosition);
-        gl.drawArrays(gl.TRIANGLES, 0, buffer.vertexCount);
-    }
-}
-
-class TrianglesDrawerPrograms {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new TrianglesDrawerPrograms(gl));
-    readonly gl: WebGLRenderingContext;
-    readonly shading: TrianglesShadingProgram;
-    readonly noShading: TrianglesNoShadingProgram;
-    private constructor(gl: WebGLRenderingContext) {
-        this.gl = gl;
-        this.shading = new TrianglesShadingProgram(gl);
-        this.noShading = new TrianglesNoShadingProgram(gl);
-    }
-}
-
 class TrianglesDrawer implements glview.Drawable {
-    private readonly programs: TrianglesDrawerPrograms;
-    private readonly buffer: VertexBuffer;
+    private readonly shadingProgram: shaders.PointNormalsProgram;
+    private readonly selectionProgram: shaders.PointsProgram;
+    private readonly buffer: shaders.VertexBuffer;
     private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, buffer: VertexBuffer, entity: object) {
-        this.programs = TrianglesDrawerPrograms.get(gl);
+    constructor(gl: WebGLRenderingContext, buffer: shaders.VertexBuffer, entity: object) {
+        this.shadingProgram = shaders.PointNormalsProgram.get(gl);
+        this.selectionProgram = shaders.PointsProgram.get(gl);
         this.buffer = buffer;
         this.entity = entity;
     }
@@ -178,10 +18,10 @@ class TrianglesDrawer implements glview.Drawable {
         this.buffer.dispose();
     }
     draw(rc: glview.RenderingContext) {
-        this.programs.shading.draw(rc, this.buffer);
+        this.shadingProgram.draw(rc, this.buffer, rc.gl.TRIANGLES);
     }
     drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
-        this.programs.noShading.draw(rc, this.buffer, session.emitColor3f(this.entity));
+        this.selectionProgram.draw(rc, this.buffer, rc.gl.TRIANGLES, session.emitColor3f(this.entity));
     }
 }
 
@@ -192,7 +32,7 @@ function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffe
     return buf;
 }
 
-class PointsAndNormals implements VertexBuffer {
+class PointsAndNormals implements shaders.VertexBuffer {
     readonly gl: WebGLRenderingContext;
     readonly points: WebGLBuffer | null;
     readonly normals: WebGLBuffer | null;
@@ -220,7 +60,7 @@ class PointsAndNormals implements VertexBuffer {
     }
 }
 
-class InterleavedPointNormals implements VertexBuffer {
+class InterleavedPointNormals implements shaders.VertexBuffer {
     readonly gl: WebGLRenderingContext;
     readonly pointNormals: WebGLBuffer | null;
     readonly vertexCount: number;
