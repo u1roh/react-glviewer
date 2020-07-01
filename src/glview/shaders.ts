@@ -203,7 +203,7 @@ export class CrazyShadingProgram extends PointNormalsProgramImpl {
         else {
             uvec = normalize(vec3(nrm.y, -nrm.x, 0));
         }
-        float coef = 0.2;
+        float coef = 0.1;
         vec3 vvec = normalize(cross(nrm, uvec));
         float u = 2.0 * (coef * dot(fPos, uvec) - round(coef * dot(fPos, uvec)));
         float v = 2.0 * (coef * dot(fPos, vvec) - round(coef * dot(fPos, vvec)));
@@ -222,6 +222,28 @@ export class CrazyShadingProgram extends PointNormalsProgramImpl {
     }`;
     private constructor(gl: WebGLRenderingContext) {
         super(gl, PointNormalsCommon.vs2, CrazyShadingProgram.fs2);
+    }
+}
+
+export class VerticesDrawer implements glview.Drawable {
+    private readonly program: PointsProgram;
+    private readonly buffer: vbo.VertexBuffer;
+    private readonly entity: object;
+    private readonly mode: number;
+    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexBuffer, mode: number, entity: object) {
+        this.program = PointsProgram.get(gl);
+        this.buffer = buffer;
+        this.entity = entity;
+        this.mode = mode;
+    }
+    dispose() {
+        this.buffer.dispose();
+    }
+    draw(rc: glview.RenderingContext) {
+        this.program.draw(rc, this.buffer, this.mode, new glview.Color3(0, 1, 0));
+    }
+    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
+        this.program.draw(rc, this.buffer, this.mode, session.emitColor3f(this.entity));
     }
 }
 

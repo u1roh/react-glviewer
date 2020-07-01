@@ -10,6 +10,17 @@ export interface VertexNormalBuffer extends VertexBuffer {
     enableNormals(atrPosition: number): void;
 }
 
+export interface VertexUVBuffer extends VertexBuffer {
+    enableUVs(atrUV: number): void;
+}
+
+export function createPointsBuffer(
+    gl: WebGLRenderingContext,
+    points: Float32Array,
+): VertexBuffer {
+    return new Points(gl, points);
+}
+
 export function createPointsAndNormalsBuffer(
     gl: WebGLRenderingContext,
     points: Float32Array,
@@ -25,11 +36,37 @@ export function createInterleavedPointNormalsBuffer(
     return new InterleavedPointNormals(gl, pointNormals);
 }
 
+export function createInterleavedPointUVsBuffer(
+    gl: WebGLRenderingContext,
+    pointUVs: Float32Array
+): VertexUVBuffer {
+    return new InterleavedPointUVs(gl, pointUVs);
+}
+
 function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffer | null {
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
     return buf;
+}
+
+class Points implements VertexBuffer {
+    readonly gl: WebGLRenderingContext;
+    readonly points: WebGLBuffer | null;
+    readonly vertexCount: number;
+    constructor(gl: WebGLRenderingContext, points: Float32Array) {
+        this.gl = gl;
+        this.points = createBuffer(gl, points);
+        this.vertexCount = points.length / 3;
+    }
+    dispose() {
+        this.gl.deleteBuffer(this.points);
+    }
+    enablePoints(atrPosition: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.points);
+        this.gl.enableVertexAttribArray(atrPosition);
+        this.gl.vertexAttribPointer(atrPosition, 3, this.gl.FLOAT, false, 0, 0);
+    }
 }
 
 class PointsAndNormals implements VertexNormalBuffer {
@@ -81,5 +118,30 @@ class InterleavedPointNormals implements VertexNormalBuffer {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointNormals);
         this.gl.enableVertexAttribArray(atrNormal);
         this.gl.vertexAttribPointer(atrNormal, 3, this.gl.FLOAT, true, 4 * 6, 4 * 3);
+    }
+}
+
+
+class InterleavedPointUVs implements VertexUVBuffer {
+    readonly gl: WebGLRenderingContext;
+    readonly pointUVs: WebGLBuffer | null;
+    readonly vertexCount: number;
+    constructor(gl: WebGLRenderingContext, pointUVs: Float32Array) {
+        this.gl = gl;
+        this.pointUVs = createBuffer(gl, pointUVs);
+        this.vertexCount = pointUVs.length / 5;
+    }
+    dispose() {
+        this.gl.deleteBuffer(this.pointUVs);
+    }
+    enablePoints(atrPosition: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointUVs);
+        this.gl.enableVertexAttribArray(atrPosition);
+        this.gl.vertexAttribPointer(atrPosition, 3, this.gl.FLOAT, false, 4 * 5, 0);
+    }
+    enableUVs(atrUV: number): void {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointUVs);
+        this.gl.enableVertexAttribArray(atrUV);
+        this.gl.vertexAttribPointer(atrUV, 2, this.gl.FLOAT, false, 4 * 5, 4 * 3);
     }
 }
