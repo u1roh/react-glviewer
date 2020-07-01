@@ -1,4 +1,5 @@
 import * as vec from './vecmath';
+import * as shaders from './shaders';
 
 export class Color3 {
     readonly r: number;
@@ -309,6 +310,12 @@ export class GLView {
             if (e.button !== 0) return;
             const obj = this.selectionBuf.select(e.offsetX, e.offsetY, this.canvas.width, this.canvas.height);
             console.log(obj);
+        });
+        canvas.ownerDocument?.addEventListener("keydown", e => {
+            if (e.key === "1") {
+                shaders.VertexNormalsDrawer.incrementShaderNo();
+                this.render();
+            }
         });
     }
     fit() {

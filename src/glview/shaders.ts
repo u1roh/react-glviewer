@@ -42,9 +42,40 @@ export class PointsProgram {
     }
 }
 
-export class PointNormalsProgram {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PointNormalsProgram(gl));
-    private static readonly vs = `
+export interface PointNormalsProgram {
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number): void;
+}
+
+class PointNormalsProgramImpl implements PointNormalsProgram {
+    private readonly gl: WebGLRenderingContext;
+    private readonly program: WebGLProgram;
+    private readonly atrPosition: number;
+    private readonly atrNormal: number;
+    private readonly uniModelViewMatrix: WebGLUniformLocation;
+    private readonly uniProjMatrix: WebGLUniformLocation;
+    protected constructor(gl: WebGLRenderingContext, srcV: string, srcF: string) {
+        this.gl = gl;
+        this.program = glview.createProgram(gl, srcV, srcF);
+        this.atrPosition = gl.getAttribLocation(this.program, "position");
+        this.atrNormal = gl.getAttribLocation(this.program, "normal");
+        this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
+        this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
+    }
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
+        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
+        const gl = rc.gl;
+        gl.useProgram(this.program);
+        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
+        rc.glUniformProjectionMatrix(this.uniProjMatrix);
+        buffer.enablePoints(this.atrPosition);
+        buffer.enableNormals(this.atrNormal);
+        gl.drawArrays(mode, 0, buffer.vertexCount);
+    }
+}
+
+
+class PointNormalsCommon {
+    static readonly vs = `
     attribute vec4 position;
     attribute vec3 normal;
     varying vec3 fPos;
@@ -57,6 +88,23 @@ export class PointNormalsProgram {
         fNrm = mat3(modelViewMatrix) * normal;
         gl_Position = projMatrix * pos;
     }`;
+    static readonly vs2 = `#version 300 es
+    in vec4 position;
+    in vec3 normal;
+    out vec3 fPos;
+    out vec3 fNrm;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projMatrix;
+    void main() {
+        vec4 pos = modelViewMatrix * position;
+        fPos = pos.xyz;
+        fNrm = mat3(modelViewMatrix) * normal;
+        gl_Position = projMatrix * pos;
+    }`;
+}
+
+export class PhongShadingProgram extends PointNormalsProgramImpl {
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PhongShadingProgram(gl));
     private static readonly fs = `
     precision mediump float;
     varying vec3 fPos;
@@ -75,19 +123,6 @@ export class PointNormalsProgram {
         float specular = pow(max(refDir.z, 0.0), shininess);
 
         gl_FragColor = vec4((diffuse + ambient) * col + vec3(specular), 1);
-    }`;
-    private static readonly vs2 = `#version 300 es
-    in vec4 position;
-    in vec3 normal;
-    out vec3 fPos;
-    out vec3 fNrm;
-    uniform mat4 modelViewMatrix;
-    uniform mat4 projMatrix;
-    void main() {
-        vec4 pos = modelViewMatrix * position;
-        fPos = pos.xyz;
-        fNrm = mat3(modelViewMatrix) * normal;
-        gl_Position = projMatrix * pos;
     }`;
     private static readonly fs2 = `#version 300 es
     precision mediump float;
@@ -109,42 +144,105 @@ export class PointNormalsProgram {
 
         color = vec4((diffuse + ambient) * col + vec3(specular), 1);
     }`;
-    private readonly gl: WebGLRenderingContext;
-    private readonly program: WebGLProgram;
-    private readonly atrPosition: number;
-    private readonly atrNormal: number;
-    private readonly uniModelViewMatrix: WebGLUniformLocation;
-    private readonly uniProjMatrix: WebGLUniformLocation;
-    constructor(gl: WebGLRenderingContext) {
-        this.gl = gl;
-        this.program = glview.isWebGL2(gl) ?
-            glview.createProgram(gl, PointNormalsProgram.vs2, PointNormalsProgram.fs2) :
-            glview.createProgram(gl, PointNormalsProgram.vs, PointNormalsProgram.fs);
-        this.atrPosition = gl.getAttribLocation(this.program, "position");
-        this.atrNormal = gl.getAttribLocation(this.program, "normal");
-        this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
-        this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
+    private constructor(gl: WebGLRenderingContext) {
+        glview.isWebGL2(gl) ?
+            super(gl, PointNormalsCommon.vs2, PhongShadingProgram.fs2) :
+            super(gl, PointNormalsCommon.vs, PhongShadingProgram.fs);
     }
-    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
-        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
-        const gl = rc.gl;
-        gl.useProgram(this.program);
-        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
-        rc.glUniformProjectionMatrix(this.uniProjMatrix);
-        buffer.enablePoints(this.atrPosition);
-        buffer.enableNormals(this.atrNormal);
-        gl.drawArrays(mode, 0, buffer.vertexCount);
+}
+
+export class ToonShadingProgram extends PointNormalsProgramImpl {
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new ToonShadingProgram(gl));
+    private static readonly fs2 = `#version 300 es
+    precision mediump float;
+    in vec3 fPos;
+    in vec3 fNrm;
+    out vec4 color;
+    void main(){
+        const vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
+        const float shininess = 2.0;
+        const float ambient = 0.3;
+        const vec3 col = vec3(0.0, 0.8, 0.0);
+
+        vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
+        vec3 nrm = normalize(fNrm);
+        vec3 refDir = reflect(-light, nrm);
+        float diffuse = dot(light, nrm) < 0.0 ? 0.0 : 1.0;
+        float specular = pow(max(refDir.z, 0.0), shininess);
+        specular = specular < 0.5 ? 0.0 : 0.7;
+
+        color = vec4((diffuse + ambient) * col + vec3(specular), 1);
+    }`;
+    private constructor(gl: WebGLRenderingContext) {
+        super(gl, PointNormalsCommon.vs2, ToonShadingProgram.fs2);
+    }
+}
+
+export class CrazyShadingProgram extends PointNormalsProgramImpl {
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new CrazyShadingProgram(gl));
+    private static readonly fs2 = `#version 300 es
+    precision mediump float;
+    in vec3 fPos;
+    in vec3 fNrm;
+    out vec4 color;
+    void main(){
+        const vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
+        const float shininess = 2.0;
+        const float ambient = 0.2;
+        const vec3 col = vec3(0.0, 0.8, 0.0);
+
+        vec3 nrm = normalize(fNrm);
+        vec3 a = abs(nrm);
+        vec3 uvec;
+        if (a.x < a.y && a.x < a.z) {
+            uvec = normalize(vec3(0, nrm.z, -nrm.y));
+        }
+        else if (a.y < a.x && a.y < a.z) {
+            uvec = normalize(vec3(-nrm.z, 0, nrm.x));
+        }
+        else {
+            uvec = normalize(vec3(nrm.y, -nrm.x, 0));
+        }
+        float coef = 0.2;
+        vec3 vvec = normalize(cross(nrm, uvec));
+        float u = 2.0 * (coef * dot(fPos, uvec) - round(coef * dot(fPos, uvec)));
+        float v = 2.0 * (coef * dot(fPos, vvec) - round(coef * dot(fPos, vvec)));
+        float r2 = u * u + v * v;
+        if (r2 < 1.0) {
+            float n = sqrt(1.0 - r2);
+            nrm = u * uvec + v * vvec + n * nrm;
+        }
+
+        vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
+        vec3 refDir = reflect(-light, nrm);
+        float diffuse = max(dot(light, nrm), 0.0);
+        float specular = pow(max(refDir.z, 0.0), shininess);
+
+        color = vec4((diffuse + ambient) * col + vec3(specular), 1);
+    }`;
+    private constructor(gl: WebGLRenderingContext) {
+        super(gl, PointNormalsCommon.vs2, CrazyShadingProgram.fs2);
     }
 }
 
 export class VertexNormalsDrawer implements glview.Drawable {
-    private readonly shadingProgram: PointNormalsProgram;
+    static shaderNo: number = 0;
+    static incrementShaderNo() {
+        ++this.shaderNo;
+    }
+    //private readonly shadingProgram: PointNormalsProgram;
+    private readonly shadingPrograms: PointNormalsProgram[];
     private readonly selectionProgram: PointsProgram;
     private readonly buffer: vbo.VertexNormalBuffer;
     private readonly entity: object;
     private readonly mode: number;
     constructor(gl: WebGLRenderingContext, buffer: vbo.VertexNormalBuffer, mode: number, entity: object) {
-        this.shadingProgram = PointNormalsProgram.get(gl);
+        //this.shadingProgram = PhongShadingProgram.get(gl);
+        this.shadingPrograms = [
+            PhongShadingProgram.get(gl),
+            ToonShadingProgram.get(gl),
+            CrazyShadingProgram.get(gl)
+        ];
         this.selectionProgram = PointsProgram.get(gl);
         this.buffer = buffer;
         this.entity = entity;
@@ -154,7 +252,9 @@ export class VertexNormalsDrawer implements glview.Drawable {
         this.buffer.dispose();
     }
     draw(rc: glview.RenderingContext) {
-        this.shadingProgram.draw(rc, this.buffer, this.mode);
+        //this.shadingProgram.draw(rc, this.buffer, this.mode);
+        const i = VertexNormalsDrawer.shaderNo % this.shadingPrograms.length;
+        this.shadingPrograms[i].draw(rc, this.buffer, this.mode);
     }
     drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
         this.selectionProgram.draw(rc, this.buffer, this.mode, session.emitColor3f(this.entity));

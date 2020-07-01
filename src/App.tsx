@@ -34,8 +34,8 @@ function App() {
 function App() {
   let [scene, setScene] = useState<giview.DrawableSource | null>(null);
   useEffect(() => {
-    //stl.STLFormat.readURL("sample.stl").then(setScene);
-    stl.STLFormat.readURL("sample.stl").then(tris => tris.toWireframe()).then(setScene);
+    stl.STLFormat.readURL("sample.stl").then(setScene);
+    //stl.STLFormat.readURL("sample.stl").then(tris => tris.toWireframe()).then(setScene);
   }, []);
 
   function inputOnChanged(e: React.ChangeEvent<HTMLInputElement>) {
@@ -69,7 +69,6 @@ function App() {
       <input id="import" type="file" accept=".stl" onChange={inputOnChanged} /><br></br>
       <span>画像</span><input id="importImage" type="file" accept=".jpg" onChange={inputImageOnChanged} /><br></br>
       <glc.GLCanvas2 useWebGL2={true} scene={scene}></glc.GLCanvas2>
-      <p>Powered by React.<img src={logo} className="App-logo" alt="logo" /></p>
     </div>
   );
 }
