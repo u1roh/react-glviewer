@@ -251,7 +251,7 @@ export class GLView {
     readonly camera = new Camera(vec.RigidTrans.UNIT, 1.0);
     readonly sceneGraph: SceneGraph;
     private readonly selectionBuf: SelectionBuffer;
-    constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph) {
+    constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph, renderIntervalMilliseconds?: number) {
         const gl = canvas.getContext(useWebGL2 ? "webgl2" : "webgl") as WebGLRenderingContext;
         this.canvas = canvas;
         this.gl = gl;
@@ -260,6 +260,11 @@ export class GLView {
             const rc = this.createContext();
             this.sceneGraph.getDrawer(this.gl).drawForSelection(rc, session);
         });
+
+        if (renderIntervalMilliseconds) {
+            // 設定されたインターバルで再描画
+            setInterval(() => { this.render() }, renderIntervalMilliseconds);
+        }
 
         // Projection Matrix で視線方向を反転させていないので（つまり右手系のままなので）、
         // 通常の OpenGL と違ってデプス値はゼロで初期化して depthFunc を GL_GREATER にする。

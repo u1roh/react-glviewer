@@ -33,7 +33,7 @@ export class GLCanvas extends React.PureComponent<{ useWebGL2: boolean }> {
     }
 }
 
-export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSource | null }) {
+export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSource | null, renderInterval?: number }) {
     let view = useRef<glview.GLView | null>(null);
     const canvas = useRef<HTMLCanvasElement>(null);
     const sceneGraph = useRef(new glview.SceneGraph());
@@ -42,9 +42,9 @@ export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSou
             sceneGraph.current.addNode(props.scene);
         }
         if (canvas.current != null) {
-            view.current = new glview.GLView(canvas.current, props.useWebGL2, sceneGraph.current);
+            view.current = new glview.GLView(canvas.current, props.useWebGL2, sceneGraph.current, props.renderInterval);
         }
-    }, [canvas, props.useWebGL2]);
+    }, [canvas, props.useWebGL2, props.renderInterval]);
     useEffect(() => {
         if (view.current != null && props.scene != null) {
             sceneGraph.current.clearNodes();

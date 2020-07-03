@@ -1,5 +1,6 @@
 import * as glview from './glview';
 import * as vbo from './vbo';
+import { basename } from 'path';
 
 export class PointsProgram {
     static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PointsProgram(gl));
@@ -47,8 +48,8 @@ export interface PointNormalsProgram {
 }
 
 class PointNormalsProgramImpl implements PointNormalsProgram {
-    private readonly gl: WebGLRenderingContext;
-    private readonly program: WebGLProgram;
+    readonly gl: WebGLRenderingContext;
+    readonly program: WebGLProgram;
     private readonly atrPosition: number;
     private readonly atrNormal: number;
     private readonly uniModelViewMatrix: WebGLUniformLocation;
@@ -105,7 +106,7 @@ class PointNormalsCommon {
 
 export class PhongShadingProgram extends PointNormalsProgramImpl {
     static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PhongShadingProgram(gl));
-    private static readonly fs = `
+    static readonly fs = `
     precision mediump float;
     varying vec3 fPos;
     varying vec3 fNrm;
@@ -124,7 +125,7 @@ export class PhongShadingProgram extends PointNormalsProgramImpl {
 
         gl_FragColor = vec4((diffuse + ambient) * col + vec3(specular), 1);
     }`;
-    private static readonly fs2 = `#version 300 es
+    static readonly fs2 = `#version 300 es
     precision mediump float;
     in vec3 fPos;
     in vec3 fNrm;
@@ -225,6 +226,46 @@ export class CrazyShadingProgram extends PointNormalsProgramImpl {
     }
 }
 
+export class PulseAnimationProgram extends PointNormalsProgramImpl {
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PulseAnimationProgram(gl));
+    static readonly vs2 = `#version 300 es
+    in vec4 position;
+    in vec3 normal;
+    out vec3 fPos;
+    out vec3 fNrm;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projMatrix;
+    uniform float seconds;
+    uniform float amplitude;
+    const float PERIOD = 2.0;
+    const float PI = 3.141592653589793;
+    void main() {
+        float delta = amplitude * sin(2.0 * PI * seconds / PERIOD);
+        vec4 pos = modelViewMatrix * (position + delta * vec4(normal, 0));
+        fPos = pos.xyz;
+        fNrm = mat3(modelViewMatrix) * normal;
+        gl_Position = projMatrix * pos;
+    }`;
+    private readonly uniSeconds: WebGLUniformLocation;
+    private readonly uniAmplitude: WebGLUniformLocation;
+    private seconds: number = 0.0;
+    private constructor(gl: WebGLRenderingContext) {
+        super(gl, PulseAnimationProgram.vs2, PhongShadingProgram.fs2);
+        this.uniSeconds = gl.getUniformLocation(this.program, "seconds")!;
+        this.uniAmplitude = gl.getUniformLocation(this.program, "amplitude")!;
+        const dt = 10;  // [milliseconds]
+        setInterval(() => { this.seconds += dt / 1000.0; }, dt);
+    }
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
+        if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
+        const gl = rc.gl;
+        gl.useProgram(this.program);
+        gl.uniform1f(this.uniSeconds, this.seconds);
+        gl.uniform1f(this.uniAmplitude, 2.0);
+        super.draw(rc, buffer, mode);
+    }
+}
+
 export class VerticesDrawer implements glview.Drawable {
     private readonly program: PointsProgram;
     private readonly buffer: vbo.VertexBuffer;
@@ -263,7 +304,8 @@ export class VertexNormalsDrawer implements glview.Drawable {
         this.shadingPrograms = [
             PhongShadingProgram.get(gl),
             ToonShadingProgram.get(gl),
-            CrazyShadingProgram.get(gl)
+            CrazyShadingProgram.get(gl),
+            PulseAnimationProgram.get(gl),
         ];
         this.selectionProgram = PointsProgram.get(gl);
         this.buffer = buffer;
