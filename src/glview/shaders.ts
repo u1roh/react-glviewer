@@ -181,10 +181,46 @@ export class ToonShadingProgram extends PointNormalsProgramImpl {
 
 export class CrazyShadingProgram extends PointNormalsProgramImpl {
     static readonly get = glview.createCache((gl: WebGLRenderingContext) => new CrazyShadingProgram(gl));
+    static readonly vs2 = `#version 300 es
+    in vec4 position;
+    in vec3 normal;
+    out vec3 fPos;
+    out vec3 fNrm;
+    out vec2 fUV;
+    out vec3 fVecU;
+    out vec3 fVecV;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projMatrix;
+    void main() {
+        vec4 pos = modelViewMatrix * position;
+        fPos = pos.xyz;
+        fNrm = mat3(modelViewMatrix) * normal;
+        gl_Position = projMatrix * pos;
+
+        vec3 a = abs(normal);
+        if (a.x <= a.y && a.x <= a.z) {
+            fVecU = normalize(vec3(0, normal.z, -normal.y));
+        }
+        else if (a.y <= a.x && a.y <= a.z) {
+            fVecU = normalize(vec3(-normal.z, 0, normal.x));
+        }
+        else {
+            fVecU = normalize(vec3(normal.y, -normal.x, 0));
+        }
+        fVecV = normalize(cross(normal, fVecU));
+        float u = dot(position.xyz, fVecU);
+        float v = dot(position.xyz, fVecV);
+        fUV = vec2(u, v);
+        fVecU = mat3(modelViewMatrix) * fVecU;
+        fVecV = mat3(modelViewMatrix) * fVecV;
+    }`;
     private static readonly fs2 = `#version 300 es
     precision mediump float;
     in vec3 fPos;
     in vec3 fNrm;
+    in vec2 fUV;
+    in vec3 fVecU;
+    in vec3 fVecV;
     out vec4 color;
     void main(){
         const vec4 lightPos = vec4(1.0, 1.0, 1.0, 0.0);
@@ -193,25 +229,13 @@ export class CrazyShadingProgram extends PointNormalsProgramImpl {
         const vec3 col = vec3(0.0, 0.8, 0.0);
 
         vec3 nrm = normalize(fNrm);
-        vec3 a = abs(nrm);
-        vec3 uvec;
-        if (a.x < a.y && a.x < a.z) {
-            uvec = normalize(vec3(0, nrm.z, -nrm.y));
-        }
-        else if (a.y < a.x && a.y < a.z) {
-            uvec = normalize(vec3(-nrm.z, 0, nrm.x));
-        }
-        else {
-            uvec = normalize(vec3(nrm.y, -nrm.x, 0));
-        }
-        float coef = 0.1;
-        vec3 vvec = normalize(cross(nrm, uvec));
-        float u = 2.0 * (coef * dot(fPos, uvec) - round(coef * dot(fPos, uvec)));
-        float v = 2.0 * (coef * dot(fPos, vvec) - round(coef * dot(fPos, vvec)));
+        const float SCALE = 10.0;
+        float u = 2.0 * (fUV.x / SCALE - round(fUV.x / SCALE));
+        float v = 2.0 * (fUV.y / SCALE - round(fUV.y / SCALE));
         float r2 = u * u + v * v;
         if (r2 < 1.0) {
             float n = sqrt(1.0 - r2);
-            nrm = u * uvec + v * vvec + n * nrm;
+            nrm = u * fVecU + v * fVecV + n * nrm;
         }
 
         vec3 light = normalize((lightPos - vec4(fPos, 1) * lightPos.w).xyz);
@@ -222,7 +246,7 @@ export class CrazyShadingProgram extends PointNormalsProgramImpl {
         color = vec4((diffuse + ambient) * col + vec3(specular), 1);
     }`;
     private constructor(gl: WebGLRenderingContext) {
-        super(gl, PointNormalsCommon.vs2, CrazyShadingProgram.fs2);
+        super(gl, CrazyShadingProgram.vs2, CrazyShadingProgram.fs2);
     }
 }
 
