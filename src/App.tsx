@@ -34,7 +34,7 @@ function App() {
 function App() {
   let [scene, setScene] = useState<giview.DrawableSource | null>(null);
   useEffect(() => {
-    stl.STLFormat.readURL("sample.stl").then(setScene);
+    stl.STLFormat.readURL("react-glviewer/sample.stl").then(setScene);
     //stl.STLFormat.readURL("sample.stl").then(tris => tris.toWireframe()).then(setScene);
   }, []);
 

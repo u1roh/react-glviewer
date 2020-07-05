@@ -290,6 +290,86 @@ export class PulseAnimationProgram extends PointNormalsProgramImpl {
     }
 }
 
+class TextureMappingProgram {
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new TextureMappingProgram(gl));
+    private static readonly vs = `
+    attribute vec4 position;
+    attribute vec2 texCoord;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projMatrix;
+    varying vec2 oTexCoord;
+    void main() {
+        gl_Position = projMatrix * modelViewMatrix * position;
+        oTexCoord = vec2(texCoord.x, 1.0 - texCoord.y);
+    }
+    `;
+    private static readonly fs = `
+    precision mediump float;
+    uniform sampler2D texture;
+    uniform vec3 color;
+    uniform bool isTextureEnabled;
+    varying vec2 oTexCoord;
+    void main(){
+        if (isTextureEnabled) {
+            gl_FragColor = vec4(color, 1) * texture2D(texture, oTexCoord);
+        } else {
+            gl_FragColor = vec4(color, 1);
+        }
+    }
+    `;
+    readonly gl: WebGLRenderingContext;
+    private readonly program: WebGLProgram;
+    private readonly atrPosition: number;
+    private readonly atrTexCoord: number;
+    private readonly uniModelViewMatrix: WebGLUniformLocation;
+    private readonly uniProjMatrix: WebGLUniformLocation;
+    private readonly uniTexture: WebGLUniformLocation;
+    private readonly uniColor: WebGLUniformLocation;
+    private readonly uniIsTextureEnabled: WebGLUniformLocation;
+    private constructor(gl: WebGLRenderingContext) {
+        this.gl = gl;
+        this.program = glview.createProgram(gl, TextureMappingProgram.vs, TextureMappingProgram.fs);
+        this.atrPosition = gl.getAttribLocation(this.program, "position");
+        this.atrTexCoord = gl.getAttribLocation(this.program, "texCoord");
+        this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
+        this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
+        this.uniTexture = gl.getUniformLocation(this.program, "texture")!;
+        this.uniColor = gl.getUniformLocation(this.program, "color")!;
+        this.uniIsTextureEnabled = gl.getUniformLocation(this.program, "isTextureEnabled")!;
+    }
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexUVBuffer, mode: number, texOrColor: WebGLTexture | glview.Color3) {
+        if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");
+        const gl = rc.gl;
+        gl.useProgram(this.program);
+        rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
+        rc.glUniformProjectionMatrix(this.uniProjMatrix);
+
+        if ('r' in texOrColor) {
+            gl.uniform3f(this.uniColor, texOrColor.r, texOrColor.g, texOrColor.b);
+            gl.uniform1i(this.uniIsTextureEnabled, 0);
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, texOrColor);
+            gl.uniform1i(this.uniTexture, 0);
+            gl.uniform3f(this.uniColor, 1, 1, 1);
+            gl.uniform1i(this.uniIsTextureEnabled, 1);
+        }
+
+        buffer.enablePoints(this.atrPosition);
+        buffer.enableUVs(this.atrTexCoord);
+
+        gl.drawArrays(mode, 0, buffer.vertexCount);
+    }
+    createTexture(image: TexImageSource): WebGLTexture {
+        const gl = this.gl;
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        return texture!;
+    }
+}
+
 export class VerticesDrawer implements glview.Drawable {
     private readonly program: PointsProgram;
     private readonly buffer: vbo.VertexBuffer;
@@ -346,5 +426,29 @@ export class VertexNormalsDrawer implements glview.Drawable {
     }
     drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
         this.selectionProgram.draw(rc, this.buffer, this.mode, session.emitColor3f(this.entity));
+    }
+}
+
+export class VertexUVsDrawer implements glview.Drawable {
+    private readonly program: TextureMappingProgram;
+    private readonly buffer: vbo.VertexUVBuffer;
+    private readonly texture: WebGLTexture;
+    private readonly mode: number;
+    private readonly entity: object;
+    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexUVBuffer, mode: number, image: TexImageSource, entity: object) {
+        this.program = TextureMappingProgram.get(gl);
+        this.buffer = buffer;
+        this.mode = mode;
+        this.texture = this.program.createTexture(image);
+        this.entity = entity;
+    }
+    dispose() {
+        this.buffer.dispose();
+    }
+    draw(rc: glview.RenderingContext) {
+        this.program.draw(rc, this.buffer, this.mode, this.texture);
+    }
+    drawForSelection(rc: glview.RenderingContext, session: glview.SelectionSession) {
+        this.program.draw(rc, this.buffer, this.mode, session.emitColor3f(this.entity));
     }
 }
