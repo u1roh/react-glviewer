@@ -5,6 +5,7 @@ import * as shaders from './shaders';
 
 export interface Points extends glview.DrawableSource {
     createVertexBuffer(gl: WebGLRenderingContext): vbo.VertexBuffer;
+    createDrawer(gl: WebGLRenderingContext, mode: number | glview.IndexBuffer, entity: object): glview.Drawable;
     count: number;
     posAt(i: number): vec.Vec3;
 }
@@ -38,8 +39,10 @@ class InterleavedPointNormals implements PointNormals {
         }
         this.boundary = builder.build()?.boundingSphere();
     }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), gl.POINTS, this.entity));
+    createDrawer(gl: WebGLRenderingContext, mode: number | glview.IndexBuffer, entity: object): glview.Drawable {
+        return new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), mode, entity);
+    }
+    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => this.createDrawer(gl, gl.POINTS, this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
@@ -76,8 +79,10 @@ class PointsAndNormals implements PointNormals {
         this.entity = entity || this;
         this.boundary = vec.Box3.boundaryOf(points)?.boundingSphere();
     }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), gl.POINTS, this.entity));
+    createDrawer(gl: WebGLRenderingContext, mode: number | glview.IndexBuffer, entity: object): glview.Drawable {
+        return new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), mode, entity);
+    }
+    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => this.createDrawer(gl, gl.POINTS, this.entity));
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }

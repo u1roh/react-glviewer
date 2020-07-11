@@ -1,6 +1,5 @@
-import { Points, PointsOf, PointNormals } from "./points";
-import { Vec3, Point3 } from "./vecmath";
-import { PointNormalsProgram } from "./shaders";
+import { Points } from "./points";
+import * as vec from "./vecmath";
 import * as glview from "./glview";
 
 export class Facet {
@@ -32,31 +31,17 @@ export class Facets {
         this.indices[3 * i + 2] = f.v3;
     }
     readonly getIndexBuffer = glview.createCache((gl: WebGLRenderingContext) =>
-        new IndexBuffer(gl, this.indices, gl.TRIANGLES));
+        new glview.IndexBuffer(gl, this.indices, gl.TRIANGLES));
 }
 
-class IndexBuffer implements glview.Dispose {
-    readonly buffer: WebGLBuffer | null;
-    readonly count: number;
-    constructor(readonly gl: WebGLRenderingContext, indices: Int32Array, readonly mode: number) {
-        this.count = indices.length;
-        this.buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+export class Mesh<T extends Points> implements glview.DrawableSource {
+    readonly entity: object;
+    constructor(readonly facets: Facets, readonly points: T, entity?: object) {
+        this.entity = entity || this;
     }
-    dispose() {
-        this.gl.deleteBuffer(this.buffer);
+    boundingSphere(): vec.Sphere | undefined {
+        return this.points.boundingSphere();
     }
-    drawElements() {
-        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffer);
-        this.gl.drawElements(this.mode, this.count, this.gl.UNSIGNED_INT, 0);
-    }
-}
-
-export class Mesh<T extends Point3> {
-    constructor(readonly points: PointsOf<T>) { }
-}
-
-export class Mesh2<T extends Points> {
-    constructor(readonly facets: Facets, readonly points: T) { }
+    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
+        this.points.createDrawer(gl, this.facets.getIndexBuffer(gl), this.entity));
 }

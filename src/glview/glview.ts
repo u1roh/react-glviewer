@@ -402,3 +402,21 @@ export function createCache<Key, T>(factory: (key: Key) => T) {
         return item.value;
     };
 }
+
+export class IndexBuffer implements Dispose {
+    readonly buffer: WebGLBuffer | null;
+    readonly count: number;
+    constructor(readonly gl: WebGLRenderingContext, indices: Int32Array, readonly mode: number) {
+        this.count = indices.length;
+        this.buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+    }
+    dispose() {
+        this.gl.deleteBuffer(this.buffer);
+    }
+    drawElements() {
+        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffer);
+        this.gl.drawElements(this.mode, this.count, this.gl.UNSIGNED_INT, 0);
+    }
+}

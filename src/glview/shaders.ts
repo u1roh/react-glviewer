@@ -29,7 +29,7 @@ export class PointsProgram {
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
         this.uniColor = gl.getUniformLocation(this.program, "color")!;
     }
-    draw(rc: glview.RenderingContext, buffer: vbo.VertexBuffer, mode: number, color3f: glview.Color3) {
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexBuffer, mode: number | glview.IndexBuffer, color3f: glview.Color3) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("PointsProgram: GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
@@ -37,12 +37,16 @@ export class PointsProgram {
         rc.glUniformModelViewMatrix(this.uniModelViewMatrix);
         rc.glUniformProjectionMatrix(this.uniProjMatrix);
         buffer.enablePoints(this.atrPosition);
-        gl.drawArrays(mode, 0, buffer.vertexCount);
+        if (typeof mode === "number") {
+            gl.drawArrays(mode, 0, buffer.vertexCount);
+        } else {
+            mode.drawElements();
+        }
     }
 }
 
 export interface PointNormalsProgram {
-    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number): void;
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number | glview.IndexBuffer): void;
 }
 
 class PointNormalsProgramImpl implements PointNormalsProgram {
@@ -59,7 +63,7 @@ class PointNormalsProgramImpl implements PointNormalsProgram {
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
     }
-    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number | glview.IndexBuffer) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
@@ -67,7 +71,11 @@ class PointNormalsProgramImpl implements PointNormalsProgram {
         rc.glUniformProjectionMatrix(this.uniProjMatrix);
         buffer.enablePoints(this.atrPosition);
         buffer.enableNormals(this.atrNormal);
-        gl.drawArrays(mode, 0, buffer.vertexCount);
+        if (typeof mode === "number") {
+            gl.drawArrays(mode, 0, buffer.vertexCount);
+        } else {
+            mode.drawElements();
+        }
     }
 }
 
@@ -277,7 +285,7 @@ export class PulseAnimationProgram extends PointNormalsProgramImpl {
         const dt = 10;  // [milliseconds]
         setInterval(() => { this.seconds += dt / 1000.0; }, dt);
     }
-    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number) {
+    draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number | glview.IndexBuffer) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
         const gl = rc.gl;
         gl.useProgram(this.program);
@@ -370,7 +378,7 @@ export class VerticesDrawer implements glview.Drawable {
     constructor(
         gl: WebGLRenderingContext,
         private readonly buffer: vbo.VertexBuffer,
-        private readonly mode: number,
+        private readonly mode: number | glview.IndexBuffer,
         private readonly entity: object
     ) {
         this.program = PointsProgram.get(gl);
@@ -397,7 +405,7 @@ export class VertexNormalsDrawer implements glview.Drawable {
     constructor(
         gl: WebGLRenderingContext,
         private readonly buffer: vbo.VertexNormalBuffer,
-        private readonly mode: number,
+        private readonly mode: number | glview.IndexBuffer,
         private readonly entity: object
     ) {
         //this.shadingProgram = PhongShadingProgram.get(gl);
