@@ -24,9 +24,9 @@ export default class Triangles implements glview.DrawableSource {
     }
     getTriangle(i: number) {
         return new vec.Triangle(
-            this.vertices.getPoint(3 * i + 0),
-            this.vertices.getPoint(3 * i + 1),
-            this.vertices.getPoint(3 * i + 2));
+            this.vertices.posAt(3 * i + 0),
+            this.vertices.posAt(3 * i + 1),
+            this.vertices.posAt(3 * i + 2));
     }
     toWireframe(): Lines {
         const points = new Float32Array(2 * 3 * this.vertices.count);
@@ -34,8 +34,8 @@ export default class Triangles implements glview.DrawableSource {
             for (let j = 0; j < 3; ++j) {
                 const idx = 3 * i + j;
                 const next = 3 * i + (j + 1) % 3;
-                const p1 = this.vertices.getPoint(idx);
-                const p2 = this.vertices.getPoint(next);
+                const p1 = this.vertices.posAt(idx);
+                const p2 = this.vertices.posAt(next);
                 points[3 * (2 * idx + 0) + 0] = p1.x;
                 points[3 * (2 * idx + 0) + 1] = p1.y;
                 points[3 * (2 * idx + 0) + 2] = p1.z;

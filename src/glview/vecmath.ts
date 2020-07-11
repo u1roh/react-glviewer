@@ -345,3 +345,16 @@ export class RigidTrans {
         return mat;
     }
 }
+
+
+export interface Point2 {
+    readonly pos: Vec2;
+}
+
+export interface Point3 {
+    readonly pos: Vec3;
+}
+
+export class PointNormal implements Point3 {
+    constructor(readonly pos: Vec3, readonly nrm: Vec3) { }
+}
