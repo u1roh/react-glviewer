@@ -72,9 +72,9 @@ export class SelectionSession {
         this.objects.push(obj);
         return SelectionSession.encodeToColor3b(this.objects.length).to3f();
     }
-    getObject(color3b: Color3): object | null {
+    getObject(color3b: Color3): object | undefined {
         const i = SelectionSession.decodeFromColor3b(color3b);
-        return 0 < i && i <= this.objects.length ? this.objects[i - 1] : null;
+        if (0 < i && i <= this.objects.length) return this.objects[i - 1];
     }
     private static encodeToColor3b(n: number): Color3 {
         return new Color3(
@@ -93,7 +93,7 @@ class SelectionBuffer {
     private readonly colorBuf: WebGLTexture | null;
     private canvasWidth: number = -1;
     private canvasHeight: number = -1;
-    private session: SelectionSession | null = null;
+    private session?: SelectionSession;
     constructor(
         private readonly gl: WebGLRenderingContext,
         private readonly renderFunc: (session: SelectionSession) => void
@@ -123,14 +123,14 @@ class SelectionBuffer {
         this.gl.deleteTexture(this.colorBuf);
     }
     clearSession() {
-        this.session = null;
+        this.session = undefined;
     }
     select(x: number, y: number, width: number, height: number) {
         const gl = this.gl;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb);
         if (width !== this.canvasWidth || height !== this.canvasHeight) {
             console.log("setup depth-buffer, color-buffer");
-            this.session = null;
+            this.session = undefined;
             this.canvasWidth = width;
             this.canvasHeight = height;
 
@@ -144,7 +144,7 @@ class SelectionBuffer {
 
             gl.viewport(0, 0, width, height);
         }
-        if (this.session === null) {
+        if (this.session === undefined) {
             console.log("render for selection");
             this.session = this.render();
         }
@@ -194,16 +194,16 @@ class DrawableList implements Drawable {
 
 export class SceneGraph implements DrawableSource {
     private nodes: DrawableSource[] = [];
-    private world: vec.Sphere | null = null;
-    private drawer: DrawableList | null = null;
+    private world?: vec.Sphere;
+    private drawer?: DrawableList;
     getDrawer(gl: WebGLRenderingContext): Drawable {
-        if (this.drawer === null) {
+        if (this.drawer === undefined) {
             this.drawer = new DrawableList(this.nodes.map(x => x.getDrawer(gl)));
         }
         return this.drawer;
     }
     boundingSphere(): vec.Sphere {
-        if (this.world === null) {
+        if (this.world === undefined) {
             const spheres = this.nodes.map(node => node.boundingSphere()).filter(s => s !== undefined).map(s => s!);
             this.world = spheres.length === 0 ? vec.Sphere.UNIT : vec.Sphere.boundaryOfArray(spheres);
         }
@@ -217,16 +217,16 @@ export class SceneGraph implements DrawableSource {
     }
     setNodes(nodes: DrawableSource[]) {
         this.nodes = nodes;
-        this.drawer = null;
-        this.world = null;
+        this.drawer = undefined;
+        this.world = undefined;
     }
     clearNodes() {
         this.setNodes([]);
     }
     addNode(node: DrawableSource) {
         this.nodes.push(node);
-        this.drawer = null;
-        this.world = null;
+        this.drawer = undefined;
+        this.world = undefined;
     }
 }
 

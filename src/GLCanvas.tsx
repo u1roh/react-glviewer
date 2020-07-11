@@ -6,7 +6,7 @@ import { STLFormat } from './glview/stl';
 
 
 export class GLCanvas extends React.PureComponent<{ useWebGL2: boolean }> {
-    view: glview.GLView | null = null;
+    view?: glview.GLView;
     private canvas: React.RefObject<HTMLCanvasElement>;
     private sceneGraph = new glview.SceneGraph();
     constructor(props: { useWebGL2: boolean }) {
@@ -14,7 +14,7 @@ export class GLCanvas extends React.PureComponent<{ useWebGL2: boolean }> {
         this.canvas = React.createRef();
     }
     public componentDidMount() {
-        if (this.canvas.current != null) {
+        if (this.canvas.current) {
             this.view = new glview.GLView(this.canvas.current, this.sceneGraph, this.props.useWebGL2);
             STLFormat.readURL("sample.stl").then(tris => {
                 this.sceneGraph.addNode(tris);
@@ -33,20 +33,20 @@ export class GLCanvas extends React.PureComponent<{ useWebGL2: boolean }> {
     }
 }
 
-export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSource | null, renderInterval?: number }) {
-    let view = useRef<glview.GLView | null>(null);
+export function GLCanvas2(props: { useWebGL2: boolean, scene?: glview.DrawableSource, renderInterval?: number }) {
+    let view = useRef<glview.GLView | undefined>();
     const canvas = useRef<HTMLCanvasElement>(null);
     const sceneGraph = useRef(new glview.SceneGraph());
     useEffect(() => {
-        if (props.scene !== null) {
+        if (props.scene) {
             sceneGraph.current.addNode(props.scene);
         }
-        if (canvas.current != null) {
+        if (canvas.current) {
             view.current = new glview.GLView(canvas.current, sceneGraph.current, props.useWebGL2, props.renderInterval);
         }
     }, [canvas, props.useWebGL2, props.renderInterval]);
     useEffect(() => {
-        if (view.current != null && props.scene != null) {
+        if (view.current && props.scene) {
             sceneGraph.current.clearNodes();
             sceneGraph.current.addNode(props.scene);
             view.current.fit();

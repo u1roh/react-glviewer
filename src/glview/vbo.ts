@@ -54,7 +54,6 @@ class Points implements VertexBuffer {
     readonly points: WebGLBuffer | null;
     readonly vertexCount: number;
     constructor(readonly gl: WebGLRenderingContext, points: Float32Array) {
-        this.gl = gl;
         this.points = createBuffer(gl, points);
         this.vertexCount = points.length / 3;
     }

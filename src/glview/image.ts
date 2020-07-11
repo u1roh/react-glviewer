@@ -10,13 +10,13 @@ export class ImageBoard implements glview.DrawableSource {
         private readonly image: TexImageSource,
         private readonly area: vec.Box2 = new vec.Box2(new vec.Interval(0, image.width), new vec.Interval(0, image.height)),
         private readonly pos: vec.RigidTrans = vec.RigidTrans.UNIT,
-        entity: object | null = null
+        entity?: object
     ) {
         this.boundary = new vec.Sphere(
             pos.transform(area.center.to3d()),
             area.lower.sub(area.center).length()
         );
-        this.entity = entity === null ? this : entity;
+        this.entity = entity || this;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => {
         const buffer = vbo.createInterleavedPointUVsBuffer(gl, this.genRectPoints());
