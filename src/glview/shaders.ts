@@ -1,6 +1,5 @@
 import * as glview from './glview';
 import * as vbo from './vbo';
-import { basename } from 'path';
 
 export class PointsProgram {
     static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PointsProgram(gl));
@@ -17,13 +16,12 @@ export class PointsProgram {
     void main(){
         gl_FragColor = vec4(color, 1);
     }`;
-    private readonly gl: WebGLRenderingContext;
     private readonly program: WebGLProgram;
     private readonly atrPosition: number;
     private readonly uniModelViewMatrix: WebGLUniformLocation;
     private readonly uniProjMatrix: WebGLUniformLocation;
     private readonly uniColor: WebGLUniformLocation;
-    constructor(gl: WebGLRenderingContext) {
+    constructor(private readonly gl: WebGLRenderingContext) {
         this.gl = gl;
         this.program = glview.createProgram(gl, PointsProgram.vs, PointsProgram.fs);
         this.atrPosition = gl.getAttribLocation(this.program, "position");
@@ -48,13 +46,12 @@ export interface PointNormalsProgram {
 }
 
 class PointNormalsProgramImpl implements PointNormalsProgram {
-    readonly gl: WebGLRenderingContext;
     readonly program: WebGLProgram;
     private readonly atrPosition: number;
     private readonly atrNormal: number;
     private readonly uniModelViewMatrix: WebGLUniformLocation;
     private readonly uniProjMatrix: WebGLUniformLocation;
-    protected constructor(gl: WebGLRenderingContext, srcV: string, srcF: string) {
+    protected constructor(readonly gl: WebGLRenderingContext, srcV: string, srcF: string) {
         this.gl = gl;
         this.program = glview.createProgram(gl, srcV, srcF);
         this.atrPosition = gl.getAttribLocation(this.program, "position");
@@ -317,7 +314,6 @@ class TextureMappingProgram {
         }
     }
     `;
-    readonly gl: WebGLRenderingContext;
     private readonly program: WebGLProgram;
     private readonly atrPosition: number;
     private readonly atrTexCoord: number;
@@ -326,8 +322,7 @@ class TextureMappingProgram {
     private readonly uniTexture: WebGLUniformLocation;
     private readonly uniColor: WebGLUniformLocation;
     private readonly uniIsTextureEnabled: WebGLUniformLocation;
-    private constructor(gl: WebGLRenderingContext) {
-        this.gl = gl;
+    private constructor(readonly gl: WebGLRenderingContext) {
         this.program = glview.createProgram(gl, TextureMappingProgram.vs, TextureMappingProgram.fs);
         this.atrPosition = gl.getAttribLocation(this.program, "position");
         this.atrTexCoord = gl.getAttribLocation(this.program, "texCoord");
@@ -372,14 +367,13 @@ class TextureMappingProgram {
 
 export class VerticesDrawer implements glview.Drawable {
     private readonly program: PointsProgram;
-    private readonly buffer: vbo.VertexBuffer;
-    private readonly entity: object;
-    private readonly mode: number;
-    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexBuffer, mode: number, entity: object) {
+    constructor(
+        gl: WebGLRenderingContext,
+        private readonly buffer: vbo.VertexBuffer,
+        private readonly mode: number,
+        private readonly entity: object
+    ) {
         this.program = PointsProgram.get(gl);
-        this.buffer = buffer;
-        this.entity = entity;
-        this.mode = mode;
     }
     dispose() {
         this.buffer.dispose();
@@ -400,10 +394,12 @@ export class VertexNormalsDrawer implements glview.Drawable {
     //private readonly shadingProgram: PointNormalsProgram;
     private readonly shadingPrograms: PointNormalsProgram[];
     private readonly selectionProgram: PointsProgram;
-    private readonly buffer: vbo.VertexNormalBuffer;
-    private readonly entity: object;
-    private readonly mode: number;
-    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexNormalBuffer, mode: number, entity: object) {
+    constructor(
+        gl: WebGLRenderingContext,
+        private readonly buffer: vbo.VertexNormalBuffer,
+        private readonly mode: number,
+        private readonly entity: object
+    ) {
         //this.shadingProgram = PhongShadingProgram.get(gl);
         this.shadingPrograms = [
             PhongShadingProgram.get(gl),
@@ -412,9 +408,6 @@ export class VertexNormalsDrawer implements glview.Drawable {
             PulseAnimationProgram.get(gl),
         ];
         this.selectionProgram = PointsProgram.get(gl);
-        this.buffer = buffer;
-        this.entity = entity;
-        this.mode = mode;
     }
     dispose() {
         this.buffer.dispose();
@@ -431,16 +424,16 @@ export class VertexNormalsDrawer implements glview.Drawable {
 
 export class VertexUVsDrawer implements glview.Drawable {
     private readonly program: TextureMappingProgram;
-    private readonly buffer: vbo.VertexUVBuffer;
     private readonly texture: WebGLTexture;
-    private readonly mode: number;
-    private readonly entity: object;
-    constructor(gl: WebGLRenderingContext, buffer: vbo.VertexUVBuffer, mode: number, image: TexImageSource, entity: object) {
+    constructor(
+        gl: WebGLRenderingContext,
+        image: TexImageSource,
+        private readonly buffer: vbo.VertexUVBuffer,
+        private readonly mode: number,
+        private readonly entity: object
+    ) {
         this.program = TextureMappingProgram.get(gl);
-        this.buffer = buffer;
-        this.mode = mode;
         this.texture = this.program.createTexture(image);
-        this.entity = entity;
     }
     dispose() {
         this.buffer.dispose();

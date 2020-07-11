@@ -4,20 +4,14 @@ import * as shaders from './shaders';
 import * as vbo from './vbo';
 
 export class ImageBoard implements glview.DrawableSource {
-    private readonly image: TexImageSource;
-    private readonly pos: vec.RigidTrans;
-    private readonly area: vec.Box2;
     private readonly boundary: vec.Sphere;
     private readonly entity: object;
     constructor(
-        image: TexImageSource,
-        area: vec.Box2 = new vec.Box2(new vec.Interval(0, image.width), new vec.Interval(0, image.height)),
-        pos: vec.RigidTrans = vec.RigidTrans.UNIT,
+        private readonly image: TexImageSource,
+        private readonly area: vec.Box2 = new vec.Box2(new vec.Interval(0, image.width), new vec.Interval(0, image.height)),
+        private readonly pos: vec.RigidTrans = vec.RigidTrans.UNIT,
         entity: object | null = null
     ) {
-        this.image = image;
-        this.pos = pos;
-        this.area = area;
         this.boundary = new vec.Sphere(
             pos.transform(area.center.to3d()),
             area.lower.sub(area.center).length()
@@ -25,8 +19,8 @@ export class ImageBoard implements glview.DrawableSource {
         this.entity = entity === null ? this : entity;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => {
-        return new shaders.VertexUVsDrawer(
-            gl, vbo.createInterleavedPointUVsBuffer(gl, this.genRectPoints()), gl.TRIANGLE_FAN, this.image, this.entity);
+        const buffer = vbo.createInterleavedPointUVsBuffer(gl, this.genRectPoints());
+        return new shaders.VertexUVsDrawer(gl, this.image, buffer, gl.TRIANGLE_FAN, this.entity);
     });
     boundingSphere(): vec.Sphere {
         return this.boundary;

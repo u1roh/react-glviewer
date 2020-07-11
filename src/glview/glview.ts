@@ -1,15 +1,9 @@
 import * as vec from './vecmath';
 import * as shaders from './shaders';
+import { threadId } from 'worker_threads';
 
 export class Color3 {
-    readonly r: number;
-    readonly g: number;
-    readonly b: number;
-    constructor(r: number, g: number, b: number) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-    }
+    constructor(readonly r: number, readonly g: number, readonly b: number) { }
     to3f() {
         return new Color3(
             this.r / 0xff,
@@ -57,12 +51,7 @@ export class Camera {
         return this.orthoMatrix(volume);
     }
 
-    focus: vec.RigidTrans;
-    scale: number;
-    constructor(focus: vec.RigidTrans, scale: number) {
-        this.focus = focus;
-        this.scale = scale;
-    }
+    constructor(public focus: vec.RigidTrans, public scale: number) { }
     fit(world: vec.Sphere) {
         this.focus = new vec.RigidTrans(this.focus.r, world.center);
         this.scale = world.radius;
@@ -99,17 +88,16 @@ export class SelectionSession {
 }
 
 class SelectionBuffer {
-    private readonly gl: WebGLRenderingContext;
-    private readonly renderFunc: (session: SelectionSession) => void;
     private readonly fb: WebGLFramebuffer | null;
     private readonly depthBuf: WebGLRenderbuffer | null;
     private readonly colorBuf: WebGLTexture | null;
     private canvasWidth: number = -1;
     private canvasHeight: number = -1;
     private session: SelectionSession | null = null;
-    constructor(gl: WebGLRenderingContext, renderFunc: (session: SelectionSession) => void) {
-        this.gl = gl;
-        this.renderFunc = renderFunc;
+    constructor(
+        private readonly gl: WebGLRenderingContext,
+        private readonly renderFunc: (session: SelectionSession) => void
+    ) {
         this.fb = gl.createFramebuffer();
         this.depthBuf = gl.createRenderbuffer();
         this.colorBuf = gl.createTexture();
@@ -192,10 +180,7 @@ export interface DrawableSource {
 }
 
 class DrawableList implements Drawable {
-    readonly items: Drawable[];
-    constructor(items: Drawable[] = []) {
-        this.items = items;
-    }
+    constructor(readonly items: Drawable[] = []) { }
     dispose() {
         for (let x of this.items) x.dispose();
     }
@@ -232,30 +217,31 @@ export class SceneGraph implements DrawableSource {
     }
     setNodes(nodes: DrawableSource[]) {
         this.nodes = nodes;
-        this.world = null;
         this.drawer = null;
+        this.world = null;
     }
     clearNodes() {
         this.setNodes([]);
     }
     addNode(node: DrawableSource) {
         this.nodes.push(node);
-        this.world = null;
         this.drawer = null;
+        this.world = null;
     }
 }
 
 export class GLView {
-    readonly canvas: HTMLCanvasElement;
     readonly gl: WebGLRenderingContext;
     readonly camera = new Camera(vec.RigidTrans.UNIT, 1.0);
-    readonly sceneGraph: SceneGraph;
     private readonly selectionBuf: SelectionBuffer;
-    constructor(canvas: HTMLCanvasElement, useWebGL2: boolean, sceneGraph: SceneGraph, renderIntervalMilliseconds?: number) {
+    constructor(
+        readonly canvas: HTMLCanvasElement,
+        readonly sceneGraph: SceneGraph = new SceneGraph(),
+        useWebGL2: boolean = true,
+        renderIntervalMilliseconds?: number
+    ) {
         const gl = canvas.getContext(useWebGL2 ? "webgl2" : "webgl") as WebGLRenderingContext;
-        this.canvas = canvas;
         this.gl = gl;
-        this.sceneGraph = sceneGraph;
         this.selectionBuf = new SelectionBuffer(gl, (session) => {
             const rc = this.createContext();
             this.sceneGraph.getDrawer(this.gl).drawForSelection(rc, session);

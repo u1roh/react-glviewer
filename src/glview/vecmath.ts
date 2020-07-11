@@ -1,9 +1,6 @@
 
 export class Vec2 {
-    readonly x: number; readonly y: number;
-    constructor(x: number, y: number) {
-        this.x = x; this.y = y;
-    }
+    constructor(readonly x: number, readonly y: number) { }
     static readonly ZERO = new Vec2(0, 0);
     static readonly EX = new Vec2(1, 0);
     static readonly EY = new Vec2(0, 1);
@@ -34,10 +31,7 @@ export class Vec2 {
 }
 
 export class Vec3 {
-    readonly x: number; readonly y: number; readonly z: number;
-    constructor(x: number, y: number, z: number) {
-        this.x = x; this.y = y; this.z = z;
-    }
+    constructor(readonly x: number, readonly y: number, readonly z: number) { }
     static readonly ZERO = new Vec3(0, 0, 0);
     static readonly EX = new Vec3(1, 0, 0);
     static readonly EY = new Vec3(0, 1, 0);
@@ -72,10 +66,8 @@ export class Vec3 {
 }
 
 export class Matrix4 {
-    private a: number[];
-    constructor(a: number[]) {
+    constructor(private readonly a: number[]) {
         if (a.length !== 16) throw new Error("Matrix4: a.length != 16");
-        this.a = a;
     }
     static get ZERO() {
         return new Matrix4([
@@ -110,12 +102,7 @@ export class Matrix4 {
 }
 
 export class Sphere {
-    readonly center: Vec3;
-    readonly radius: number;
-    constructor(center: Vec3, radius: number) {
-        this.center = center;
-        this.radius = radius;
-    }
+    constructor(readonly center: Vec3, readonly radius: number) { }
     static readonly UNIT = new Sphere(Vec3.ZERO, 1.0);
     static boundaryOfTwo(sphere1: Sphere, sphere2: Sphere) {
         const vec = sphere2.center.sub(sphere1.center);
@@ -159,15 +146,11 @@ export class Sphere {
 }
 
 export class Interval {
-    readonly lower: number;
-    readonly upper: number;
     static new(lower: number, upper: number): Interval | undefined {
         return lower <= upper ? new Interval(lower, upper) : undefined;
     }
-    constructor(lower: number, upper: number) {
-        if (lower > upper) throw "invalid interval";
-        this.lower = lower;
-        this.upper = upper;
+    constructor(readonly lower: number, readonly upper: number) {
+        if (lower > upper) throw new Error("invalid interval");
     }
     get width(): number {
         return this.upper - this.lower;
@@ -192,12 +175,7 @@ export class IntervalBuilder {
 }
 
 export class Box2 {
-    readonly x: Interval;
-    readonly y: Interval;
-    constructor(x: Interval, y: Interval) {
-        this.x = x;
-        this.y = y;
-    }
+    constructor(readonly x: Interval, readonly y: Interval) { }
     static new(x?: Interval, y?: Interval): Box2 | undefined {
         return (x && y) ? new Box2(x, y) : undefined;
     }
@@ -224,14 +202,7 @@ export class Box2 {
 }
 
 export class Box3 {
-    readonly x: Interval;
-    readonly y: Interval;
-    readonly z: Interval;
-    constructor(x: Interval, y: Interval, z: Interval) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
+    constructor(readonly x: Interval, readonly y: Interval, readonly z: Interval) { }
     static new(x?: Interval, y?: Interval, z?: Interval): Box3 | undefined {
         return (x && y && z) ? new Box3(x, y, z) : undefined;
     }
@@ -281,27 +252,11 @@ export class Box3Builder {
 }
 
 export class Triangle {
-    readonly p1: Vec3;
-    readonly p2: Vec3;
-    readonly p3: Vec3;
-    constructor(p1: Vec3, p2: Vec3, p3: Vec3) {
-        this.p1 = p1;
-        this.p2 = p2;
-        this.p3 = p3;
-    }
+    constructor(readonly p1: Vec3, readonly p2: Vec3, readonly p3: Vec3) { }
 }
 
 export class Quaternion {
-    readonly w: number;
-    readonly x: number;
-    readonly y: number;
-    readonly z: number;
-    constructor(w: number, x: number, y: number, z: number) {
-        this.w = w;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
+    constructor(readonly w: number, readonly x: number, readonly y: number, readonly z: number) { }
     clone() {
         return new Quaternion(this.w, this.x, this.y, this.z);
     }
@@ -319,10 +274,7 @@ export class Quaternion {
 }
 
 export class Rotation {
-    private readonly q: Quaternion;
-    constructor(q: Quaternion) {
-        this.q = q;
-    }
+    constructor(private readonly q: Quaternion) { }
     static ofAxis(axis: Vec3, radian: number): Rotation {
         let c = Math.cos(0.5 * radian);
         let s = Math.sin(0.5 * radian) / axis.length();
@@ -372,12 +324,7 @@ export class Rotation {
 }
 
 export class RigidTrans {
-    readonly r: Rotation;
-    readonly t: Vec3; // translation
-    constructor(r: Rotation, t: Vec3) {
-        this.r = r;
-        this.t = t;
-    }
+    constructor(readonly r: Rotation, readonly t: Vec3) { }
     static readonly UNIT = new RigidTrans(Rotation.UNIT, Vec3.ZERO);
     clone() {
         return new RigidTrans(this.r.clone(), this.t.clone());

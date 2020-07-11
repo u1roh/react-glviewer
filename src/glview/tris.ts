@@ -1,16 +1,13 @@
 import * as vec from './vecmath';
 import * as glview from './glview';
 import * as shaders from './shaders';
-import * as vbo from './vbo';
 import * as points from './points';
 import Lines from './lines';
 
 export default class Triangles implements glview.DrawableSource {
-    readonly vertices: points.PointNormals;
     private readonly entity: object;
-    constructor(vertices: points.PointNormals, entity: object | null = null) {
-        this.vertices = vertices;
-        this.entity = entity === null ? this : entity;
+    constructor(public readonly vertices: points.PointNormals, entity?: object) {
+        this.entity = entity || this;
     }
     readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
         new shaders.VertexNormalsDrawer(

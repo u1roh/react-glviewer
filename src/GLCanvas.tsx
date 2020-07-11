@@ -15,7 +15,7 @@ export class GLCanvas extends React.PureComponent<{ useWebGL2: boolean }> {
     }
     public componentDidMount() {
         if (this.canvas.current != null) {
-            this.view = new glview.GLView(this.canvas.current, this.props.useWebGL2, this.sceneGraph);
+            this.view = new glview.GLView(this.canvas.current, this.sceneGraph, this.props.useWebGL2);
             STLFormat.readURL("sample.stl").then(tris => {
                 this.sceneGraph.addNode(tris);
                 this.view?.fit();
@@ -42,7 +42,7 @@ export function GLCanvas2(props: { useWebGL2: boolean, scene: glview.DrawableSou
             sceneGraph.current.addNode(props.scene);
         }
         if (canvas.current != null) {
-            view.current = new glview.GLView(canvas.current, props.useWebGL2, sceneGraph.current, props.renderInterval);
+            view.current = new glview.GLView(canvas.current, sceneGraph.current, props.useWebGL2, props.renderInterval);
         }
     }, [canvas, props.useWebGL2, props.renderInterval]);
     useEffect(() => {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
 import './App.css';
 import * as glc from './GLCanvas';
 import * as stl from './glview/stl';

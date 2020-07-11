@@ -51,10 +51,9 @@ function createBuffer(gl: WebGLRenderingContext, data: Float32Array): WebGLBuffe
 }
 
 class Points implements VertexBuffer {
-    readonly gl: WebGLRenderingContext;
     readonly points: WebGLBuffer | null;
     readonly vertexCount: number;
-    constructor(gl: WebGLRenderingContext, points: Float32Array) {
+    constructor(readonly gl: WebGLRenderingContext, points: Float32Array) {
         this.gl = gl;
         this.points = createBuffer(gl, points);
         this.vertexCount = points.length / 3;
@@ -70,13 +69,11 @@ class Points implements VertexBuffer {
 }
 
 class PointsAndNormals implements VertexNormalBuffer {
-    readonly gl: WebGLRenderingContext;
     readonly points: WebGLBuffer | null;
     readonly normals: WebGLBuffer | null;
     readonly vertexCount: number;
-    constructor(gl: WebGLRenderingContext, points: Float32Array, normals: Float32Array) {
+    constructor(readonly gl: WebGLRenderingContext, points: Float32Array, normals: Float32Array) {
         if (points.length !== normals.length) throw new Error("points.length != normals.length");
-        this.gl = gl;
         this.points = createBuffer(gl, points);
         this.normals = createBuffer(gl, normals);
         this.vertexCount = points.length / 3;
@@ -98,10 +95,9 @@ class PointsAndNormals implements VertexNormalBuffer {
 }
 
 class InterleavedPointNormals implements VertexNormalBuffer {
-    readonly gl: WebGLRenderingContext;
     readonly pointNormals: WebGLBuffer | null;
     readonly vertexCount: number;
-    constructor(gl: WebGLRenderingContext, pointNormals: Float32Array) {
+    constructor(readonly gl: WebGLRenderingContext, pointNormals: Float32Array) {
         this.gl = gl;
         this.pointNormals = createBuffer(gl, pointNormals);
         this.vertexCount = pointNormals.length / 6;
@@ -123,11 +119,9 @@ class InterleavedPointNormals implements VertexNormalBuffer {
 
 
 class InterleavedPointUVs implements VertexUVBuffer {
-    readonly gl: WebGLRenderingContext;
     readonly pointUVs: WebGLBuffer | null;
     readonly vertexCount: number;
-    constructor(gl: WebGLRenderingContext, pointUVs: Float32Array) {
-        this.gl = gl;
+    constructor(readonly gl: WebGLRenderingContext, pointUVs: Float32Array) {
         this.pointUVs = createBuffer(gl, pointUVs);
         this.vertexCount = pointUVs.length / 5;
     }

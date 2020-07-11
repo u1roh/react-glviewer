@@ -19,11 +19,9 @@ export function createPointsAndNormals(points: Float32Array, normals: Float32Arr
 }
 
 class InterleavedPointNormals implements PointNormals {
-    readonly data: Float32Array;
     private readonly boundary: vec.Sphere | undefined;
     private readonly entity: object;
-    constructor(data: Float32Array, entity?: object) {
-        this.data = data;
+    constructor(readonly data: Float32Array, entity?: object) {
         this.entity = entity || this;
         const builder = new vec.Box3Builder();
         for (let i = 0; i < this.count; ++i) {
@@ -51,14 +49,10 @@ class InterleavedPointNormals implements PointNormals {
 }
 
 class PointsAndNormals implements PointNormals {
-    private readonly points: Float32Array;
-    private readonly normals: Float32Array;
     private readonly boundary: vec.Sphere | undefined;
     private readonly entity: object;
-    constructor(points: Float32Array, normals: Float32Array, entity?: object) {
+    constructor(readonly points: Float32Array, readonly normals: Float32Array, entity?: object) {
         if (points.length !== normals.length) throw new Error("points.length !== normals.length");
-        this.points = points;
-        this.normals = normals;
         this.entity = entity || this;
         this.boundary = vec.Box3.boundaryOf(points)?.boundingSphere();
     }
