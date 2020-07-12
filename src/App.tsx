@@ -4,6 +4,9 @@ import * as glc from './GLCanvas';
 import * as stl from './glview/stl';
 import * as giview from './glview/glview';
 import * as img from './glview/image';
+import * as mesh from './glview/mesh';
+import * as pnts from './glview/points';
+import { Vec2, PointNormal, Vec3 } from './glview/vecmath';
 
 /*
 function App() {
@@ -29,11 +32,22 @@ function App() {
 }
 */
 
+function createTetraMesh(): mesh.Mesh<pnts.PointNormals> {
+  const points = pnts.createInterleavedPointNormals([
+    new PointNormal(new Vec3(0, 0, 0), new Vec3(-1, -1, -1).normalize()),
+    new PointNormal(new Vec3(1, 0, 0), new Vec3(1, 0, 0)),
+    new PointNormal(new Vec3(0, 1, 0), new Vec3(0, 1, 0)),
+    new PointNormal(new Vec3(0, 0, 1), new Vec3(0, 0, 1)),
+  ]);
+  return new mesh.Mesh(mesh.Facets.tetra(), points);
+}
+
 //*
 function App() {
   let [scene, setScene] = useState<giview.DrawableSource | undefined>();
   useEffect(() => {
     stl.STLFormat.readURL("react-glviewer/sample.stl").then(setScene);
+    //setScene(createTetraMesh());
     //stl.STLFormat.readURL("sample.stl").then(tris => tris.toWireframe()).then(setScene);
   }, []);
 

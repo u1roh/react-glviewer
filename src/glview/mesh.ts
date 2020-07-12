@@ -32,6 +32,14 @@ export class Facets {
     }
     readonly getIndexBuffer = glview.createCache((gl: WebGLRenderingContext) =>
         new glview.IndexBuffer(gl, this.indices, gl.TRIANGLES));
+    static tetra(): Facets {
+        const facets = new Facets(4);
+        facets.set(0, new Facet(1, 2, 3));
+        facets.set(1, new Facet(0, 3, 2));
+        facets.set(2, new Facet(0, 1, 3));
+        facets.set(3, new Facet(0, 2, 1));
+        return facets;
+    }
 }
 
 export class Mesh<T extends Points> implements glview.DrawableSource {

@@ -20,8 +20,21 @@ export interface PointNormals extends PointsOf<vec.PointNormal> {
     normalAt(i: number): vec.Vec3;
 }
 
-export function createInterleavedPointNormals(data: Float32Array, entity?: object): PointNormals {
-    return new InterleavedPointNormals(data, entity);
+export function createInterleavedPointNormals(data: Float32Array | vec.PointNormal[], entity?: object): PointNormals {
+    if (data instanceof Float32Array) {
+        return new InterleavedPointNormals(data, entity);
+    } else {
+        const dst = new Float32Array(6 * data.length);
+        for (let i = 0; i < data.length; ++i) {
+            dst[6 * i + 0] = data[i].pos.x;
+            dst[6 * i + 1] = data[i].pos.y;
+            dst[6 * i + 2] = data[i].pos.z;
+            dst[6 * i + 3] = data[i].nrm.x;
+            dst[6 * i + 4] = data[i].nrm.y;
+            dst[6 * i + 5] = data[i].nrm.z;
+        }
+        return new InterleavedPointNormals(dst, entity);
+    }
 }
 
 export function createPointsAndNormals(points: Float32Array, normals: Float32Array, entity?: object): PointNormals {

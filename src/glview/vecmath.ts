@@ -1,3 +1,4 @@
+import { runInThisContext } from "vm";
 
 export class Vec2 {
     constructor(readonly x: number, readonly y: number) { }
@@ -39,11 +40,27 @@ export class Vec3 {
     clone() {
         return new Vec3(this.x, this.y, this.z);
     }
+    dot(v: Vec3): number {
+        return this.x * v.x + this.y * v.y + this.z * v.z;
+    }
     lengthSquared(): number {
-        return this.x * this.x + this.y * this.y + this.z * this.z;
+        return this.dot(this);
     }
     length(): number {
         return Math.sqrt(this.lengthSquared());
+    }
+    isFinite(): boolean {
+        return Number.isFinite(this.x) && Number.isFinite(this.y) && Number.isFinite(this.z);
+    }
+    tryNormalize(): Vec3 | undefined {
+        const v = this.mul(1.0 / this.length());
+        if (v.isFinite()) return v;
+    }
+    normalizeOr(def: Vec3): Vec3 {
+        return this.tryNormalize() || def;
+    }
+    normalize(): Vec3 {
+        return this.normalizeOr(Vec3.EZ);
     }
     neg(): Vec3 {
         return new Vec3(-this.x, -this.y, -this.z);
