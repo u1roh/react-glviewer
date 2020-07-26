@@ -194,12 +194,12 @@ class DrawableList implements Drawable {
 export class SceneGraph implements DrawableSource {
     private nodes: DrawableSource[] = [];
     private world?: vec.Sphere;
-    private drawer?: DrawableList;
+    private drawers?: Cache<WebGLRenderingContext, Drawable>;
     getDrawer(gl: WebGLRenderingContext): Drawable {
-        if (this.drawer === undefined) {
-            this.drawer = new DrawableList(this.nodes.map(x => x.getDrawer(gl)));
+        if (this.drawers === undefined) {
+            this.drawers = new Cache((gl: WebGLRenderingContext) => new DrawableList(this.nodes.map(x => x.getDrawer(gl))));
         }
-        return this.drawer;
+        return this.drawers.get(gl);
     }
     boundingSphere(): vec.Sphere {
         if (this.world === undefined) {
@@ -219,21 +219,24 @@ export class SceneGraph implements DrawableSource {
             node.dispose();
         }
         this.nodes = nodes;
-        this.drawer = undefined;
-        this.world = undefined;
+        this.onNodesChanged();
+    }
+    addNode(node: DrawableSource) {
+        this.nodes.push(node);
+        this.onNodesChanged();
     }
     clearNodes() {
         this.setNodes([]);
     }
-    addNode(node: DrawableSource) {
-        this.nodes.push(node);
-        this.drawer = undefined;
-        this.world = undefined;
-    }
     dispose() {
-        for (let node of this.nodes) {
-            node.dispose();
+        this.clearNodes();
+    }
+    private onNodesChanged() {
+        if (this.drawers) {
+            this.drawers.dispose();
+            this.drawers = undefined;
         }
+        this.world = undefined;
     }
 }
 
