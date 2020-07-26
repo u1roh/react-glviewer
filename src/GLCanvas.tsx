@@ -22,6 +22,14 @@ export default function GLCanvas(props: { useWebGL2: boolean, scene?: glview.Dra
         }
     }, [props.scene]);
     return (
+        <div>
         <canvas ref={canvas} width="800" height="600" style={{ borderStyle: "solid" }}>WebGL 2.0 must be supported.</canvas>
+            <br></br><span onClick={() => {
+                view.current?.createOperation({
+                    cursor: 'pointer',
+                    onMouseUp: (e) => { return [e.clientX, e.clientY]; }
+                }).run(([x, y]) => alert("(" + x + ", " + y + ")"))
+            }}>Click Here</span>
+        </div>
     );
 }

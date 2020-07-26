@@ -1,5 +1,6 @@
 import * as vec from './vecmath';
 import * as shaders from './shaders';
+import Cont from '../cont';
 
 export class Color3 {
     constructor(readonly r: number, readonly g: number, readonly b: number) { }
@@ -355,6 +356,34 @@ export class GLView {
         const rect = this.canvas.getBoundingClientRect();
         const margin = rect.left;
         this.resize(window.innerWidth - 2 * margin, window.innerHeight - rect.top - margin);
+    }
+    createOperation<T>(handlers: {
+        cursor?: string,
+        onMouseDown?: (e: MouseEvent) => T | null | undefined,
+        onMouseUp?: (e: MouseEvent) => T | null | undefined,
+    }): Cont<T> {
+        return new Cont((onContinue) => {
+            const prevCursor = this.canvas.style.cursor;
+            const detachers: (()=>void)[] = [];
+            const exit = (result: T | null) => {
+                for (let f of detachers) f();
+                this.canvas.style.cursor = prevCursor;
+                if (result) onContinue(result);
+            };
+            const addHandler = <K extends keyof HTMLElementEventMap>(type: K, handler?: (e: HTMLElementEventMap[K]) => T | null | undefined) => {
+                if (handler) {
+                    const listener = (e: HTMLElementEventMap[K]) => {
+                        const result = handler(e);
+                        if (result !== undefined) exit(result);
+                    };
+                    this.canvas.addEventListener(type, listener);
+                    detachers.push(() => this.canvas.removeEventListener(type, listener));
+                }
+            };
+            addHandler('mousedown', handlers.onMouseDown);
+            addHandler('mouseup', handlers.onMouseUp);
+            if (handlers.cursor) this.canvas.style.cursor = handlers.cursor;
+        });
     }
 }
 
