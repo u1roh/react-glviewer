@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import * as glc from './GLCanvas';
+import GLCanvas from './GLCanvas';
 import * as stl from './glview/stl';
 import * as giview from './glview/glview';
 import * as img from './glview/image';
@@ -59,7 +59,7 @@ function App() {
     <div className="App">
       <input id="import" type="file" accept=".stl" onChange={inputOnChanged} /><br></br>
       <span>画像</span><input id="importImage" type="file" accept=".jpg" onChange={inputImageOnChanged} /><br></br>
-      <glc.GLCanvas2 useWebGL2={true} scene={scene} renderInterval={10}></glc.GLCanvas2>
+      <GLCanvas useWebGL2={true} scene={scene} renderInterval={10}></GLCanvas>
     </div>
   );
 }
