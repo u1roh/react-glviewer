@@ -4,33 +4,11 @@ import * as glc from './GLCanvas';
 import * as stl from './glview/stl';
 import * as giview from './glview/glview';
 import * as img from './glview/image';
-import * as mesh from './glview/mesh';
-import * as pnts from './glview/points';
-import { Vec2, PointNormal, Vec3 } from './glview/vecmath';
 
 /*
-function App() {
-  const canvas: React.RefObject<glc.GLCanvas> = React.createRef();
-  function inputOnChanged(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (files != null && files.length >= 1 && canvas.current != null) {
-      const view = canvas.current.view;
-      stl.STLFormat.readFile(files[0]).then(tris => {
-        view?.setScene(tris);
-        view?.fit();
-        view?.render();
-      });
-    }
-  }
-  return (
-    <div className="App">
-      <input id="import" type="file" accept=".stl" onChange={inputOnChanged} /><br></br>
-      <glc.GLCanvas useWebGL2={true} ref={canvas}></glc.GLCanvas>
-      <p>Powered by React.<img src={logo} className="App-logo" alt="logo" /></p>
-    </div>
-  );
-}
-*/
+import * as mesh from './glview/mesh';
+import * as pnts from './glview/points';
+import { PointNormal, Vec3 } from './glview/vecmath';
 
 function createTetraMesh(): mesh.Mesh<pnts.PointNormals> {
   const points = pnts.createInterleavedPointNormals([
@@ -41,8 +19,8 @@ function createTetraMesh(): mesh.Mesh<pnts.PointNormals> {
   ]);
   return new mesh.Mesh(mesh.Facets.tetra(), points);
 }
+*/
 
-//*
 function App() {
   let [scene, setScene] = useState<giview.DrawableSource | undefined>();
   useEffect(() => {
@@ -85,6 +63,5 @@ function App() {
     </div>
   );
 }
-//*/
 
 export default App;

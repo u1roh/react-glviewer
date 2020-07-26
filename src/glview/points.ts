@@ -44,6 +44,9 @@ export function createPointsAndNormals(points: Float32Array, normals: Float32Arr
 class InterleavedPointNormals implements PointNormals {
     private readonly boundary: vec.Sphere | undefined;
     private readonly entity: object;
+    private readonly drawers = new glview.Cache((gl: WebGLRenderingContext) =>
+        this.createDrawer(gl, gl.POINTS, this.entity)
+    );
     constructor(readonly data: Float32Array, entity?: object) {
         this.entity = entity || this;
         const builder = new vec.Box3Builder();
@@ -52,10 +55,15 @@ class InterleavedPointNormals implements PointNormals {
         }
         this.boundary = builder.build()?.boundingSphere();
     }
+    dispose() {
+        this.drawers.dispose();
+    }
     createDrawer(gl: WebGLRenderingContext, mode: number | glview.IndexBuffer, entity: object): glview.Drawable {
         return new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), mode, entity);
     }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => this.createDrawer(gl, gl.POINTS, this.entity));
+    getDrawer(gl: WebGLRenderingContext): glview.Drawable {
+        return this.drawers.get(gl);
+    }
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }
@@ -87,15 +95,21 @@ class InterleavedPointNormals implements PointNormals {
 class PointsAndNormals implements PointNormals {
     private readonly boundary: vec.Sphere | undefined;
     private readonly entity: object;
+    private readonly drawers = new glview.Cache((gl: WebGLRenderingContext) => this.createDrawer(gl, gl.POINTS, this.entity));
     constructor(readonly points: Float32Array, readonly normals: Float32Array, entity?: object) {
         if (points.length !== normals.length) throw new Error("points.length !== normals.length");
         this.entity = entity || this;
         this.boundary = vec.Box3.boundaryOf(points)?.boundingSphere();
     }
+    dispose() {
+        this.drawers.dispose();
+    }
     createDrawer(gl: WebGLRenderingContext, mode: number | glview.IndexBuffer, entity: object): glview.Drawable {
         return new shaders.VertexNormalsDrawer(gl, this.createVertexBuffer(gl), mode, entity);
     }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => this.createDrawer(gl, gl.POINTS, this.entity));
+    getDrawer(gl: WebGLRenderingContext): glview.Drawable {
+        return this.drawers.get(gl);
+    }
     boundingSphere(): vec.Sphere | undefined {
         return this.boundary;
     }

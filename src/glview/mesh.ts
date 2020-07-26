@@ -30,8 +30,6 @@ export class Facets {
         this.indices[3 * i + 1] = f.v2;
         this.indices[3 * i + 2] = f.v3;
     }
-    readonly getIndexBuffer = glview.createCache((gl: WebGLRenderingContext) =>
-        new glview.IndexBuffer(gl, this.indices, gl.TRIANGLES));
     static tetra(): Facets {
         const facets = new Facets(4);
         facets.set(0, new Facet(1, 2, 3));
@@ -44,12 +42,20 @@ export class Facets {
 
 export class Mesh<T extends Points> implements glview.DrawableSource {
     readonly entity: object;
+    private readonly indexBufs = new glview.Cache((gl: WebGLRenderingContext) =>
+        new glview.IndexBuffer(gl, this.facets.indices, gl.TRIANGLES));
+    private readonly drawers = new glview.Cache((gl: WebGLRenderingContext) =>
+        this.points.createDrawer(gl, this.indexBufs.get(gl), this.entity));
     constructor(readonly facets: Facets, readonly points: T, entity?: object) {
         this.entity = entity || this;
+    }
+    dispose() {
+        this.drawers.dispose();
     }
     boundingSphere(): vec.Sphere | undefined {
         return this.points.boundingSphere();
     }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
-        this.points.createDrawer(gl, this.facets.getIndexBuffer(gl), this.entity));
+    getDrawer(gl: WebGLRenderingContext): glview.Drawable {
+        return this.drawers.get(gl);
+    }
 }

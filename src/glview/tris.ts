@@ -6,16 +6,22 @@ import Lines from './lines';
 
 export default class Triangles implements glview.DrawableSource {
     private readonly entity: object;
-    constructor(public readonly vertices: points.PointNormals, entity?: object) {
-        this.entity = entity || this;
-    }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) =>
+    private readonly drawers = new  glview.Cache((gl: WebGLRenderingContext) =>
         new shaders.VertexNormalsDrawer(
             gl,
             this.vertices.createVertexBuffer(gl),
             gl.TRIANGLES,
             this.entity
         ));
+    constructor(public readonly vertices: points.PointNormals, entity?: object) {
+        this.entity = entity || this;
+    }
+    dispose() {
+        this.drawers.dispose();
+    }
+    getDrawer(gl: WebGLRenderingContext): glview.Drawable {
+        return this.drawers.get(gl);
+    }
     boundingSphere(): vec.Sphere | undefined {
         return this.vertices.boundingSphere();
     }

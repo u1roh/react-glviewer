@@ -1,8 +1,13 @@
 import * as glview from './glview';
 import * as vbo from './vbo';
 
+function deleteProgramAndShaders(gl: WebGLRenderingContext, program: WebGLProgram) {
+    gl.getAttachedShaders(program)?.forEach((shader) => gl.deleteShader(shader));
+    gl.deleteProgram(program);
+}
+
 export class PointsProgram {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PointsProgram(gl));
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PointsProgram(gl))[0];
     private static readonly vs = `
     attribute vec4 position;
     uniform mat4 modelViewMatrix;
@@ -28,6 +33,9 @@ export class PointsProgram {
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
         this.uniColor = gl.getUniformLocation(this.program, "color")!;
+    }
+    dispose() {
+        deleteProgramAndShaders(this.gl, this.program);
     }
     draw(rc: glview.RenderingContext, buffer: vbo.VertexBuffer, mode: number | glview.IndexBuffer, color3f: glview.Color3) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("PointsProgram: GL rendering context mismatch");
@@ -62,6 +70,9 @@ class PointNormalsProgramImpl implements PointNormalsProgram {
         this.atrNormal = gl.getAttribLocation(this.program, "normal");
         this.uniModelViewMatrix = gl.getUniformLocation(this.program, "modelViewMatrix")!;
         this.uniProjMatrix = gl.getUniformLocation(this.program, "projMatrix")!;
+    }
+    dispose() {
+        deleteProgramAndShaders(this.gl, this.program);
     }
     draw(rc: glview.RenderingContext, buffer: vbo.VertexNormalBuffer, mode: number | glview.IndexBuffer) {
         if (rc.gl !== this.gl || buffer.gl !== this.gl) throw new Error("GL rendering context mismatch");
@@ -110,7 +121,7 @@ class PointNormalsCommon {
 }
 
 export class PhongShadingProgram extends PointNormalsProgramImpl {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PhongShadingProgram(gl));
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PhongShadingProgram(gl))[0];
     static readonly fs = `
     precision mediump float;
     varying vec3 fPos;
@@ -158,7 +169,7 @@ export class PhongShadingProgram extends PointNormalsProgramImpl {
 }
 
 export class ToonShadingProgram extends PointNormalsProgramImpl {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new ToonShadingProgram(gl));
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new ToonShadingProgram(gl))[0];
     private static readonly fs2 = `#version 300 es
     precision mediump float;
     in vec3 fPos;
@@ -185,7 +196,7 @@ export class ToonShadingProgram extends PointNormalsProgramImpl {
 }
 
 export class CrazyShadingProgram extends PointNormalsProgramImpl {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new CrazyShadingProgram(gl));
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new CrazyShadingProgram(gl))[0];
     static readonly vs2 = `#version 300 es
     in vec4 position;
     in vec3 normal;
@@ -256,7 +267,7 @@ export class CrazyShadingProgram extends PointNormalsProgramImpl {
 }
 
 export class PulseAnimationProgram extends PointNormalsProgramImpl {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PulseAnimationProgram(gl));
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new PulseAnimationProgram(gl))[0];
     static readonly vs2 = `#version 300 es
     in vec4 position;
     in vec3 normal;
@@ -296,7 +307,7 @@ export class PulseAnimationProgram extends PointNormalsProgramImpl {
 }
 
 class TextureMappingProgram {
-    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new TextureMappingProgram(gl));
+    static readonly get = glview.createCache((gl: WebGLRenderingContext) => new TextureMappingProgram(gl))[0];
     private static readonly vs = `
     attribute vec4 position;
     attribute vec2 texCoord;
@@ -339,6 +350,9 @@ class TextureMappingProgram {
         this.uniTexture = gl.getUniformLocation(this.program, "texture")!;
         this.uniColor = gl.getUniformLocation(this.program, "color")!;
         this.uniIsTextureEnabled = gl.getUniformLocation(this.program, "isTextureEnabled")!;
+    }
+    dispose() {
+        deleteProgramAndShaders(this.gl, this.program);
     }
     draw(rc: glview.RenderingContext, buffer: vbo.VertexUVBuffer, mode: number, texOrColor: WebGLTexture | glview.Color3) {
         if (rc.gl !== this.gl) throw new Error("TrianglesDrawerProgram: GL rendering context mismatch");

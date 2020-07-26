@@ -1,6 +1,5 @@
 import * as vec from './vecmath';
 import * as shaders from './shaders';
-import { threadId } from 'worker_threads';
 
 export class Color3 {
     constructor(readonly r: number, readonly g: number, readonly b: number) { }
@@ -174,7 +173,7 @@ export interface Drawable extends Dispose {
     drawForSelection(rc: RenderingContext, session: SelectionSession): void;
 }
 
-export interface DrawableSource {
+export interface DrawableSource extends Dispose {
     getDrawer(gl: WebGLRenderingContext): Drawable;
     boundingSphere(): vec.Sphere | undefined;
 }
@@ -216,6 +215,9 @@ export class SceneGraph implements DrawableSource {
         return this.nodes[i];
     }
     setNodes(nodes: DrawableSource[]) {
+        for (let node of this.nodes) {
+            node.dispose();
+        }
         this.nodes = nodes;
         this.drawer = undefined;
         this.world = undefined;
@@ -227,6 +229,11 @@ export class SceneGraph implements DrawableSource {
         this.nodes.push(node);
         this.drawer = undefined;
         this.world = undefined;
+    }
+    dispose() {
+        for (let node of this.nodes) {
+            node.dispose();
+        }
     }
 }
 
@@ -379,21 +386,11 @@ export function createProgram(gl: WebGLRenderingContext, srcV: string, srcF: str
     return program;
 }
 
-export function createCache<Key, T>(factory: (key: Key) => T) {
-    /*
-    const registry = new Map<Key, T>();
-    return (key: Key) => {
-        let instance = registry.get(key);
-        if (instance === undefined) {
-            instance = factory(key);
-            registry.set(key, instance);
-        }
-        return instance;
-    };
-    */
+export function createCache<Key, T extends Dispose>(factory: (key: Key) => T): [(key: Key) => T, () => void] {
     // registry の要素数は非常に少ないことを想定しているので、Map を使うよりも配列の線形探索のほうが速いはず
-    const cache: { key: Key; value: T; }[] = [];
-    return (key: Key) => {
+    let cache: { key: Key; value: T; }[] | undefined = [];
+    const get = (key: Key) => {
+        if (cache === undefined) throw Error("already disposed");
         let item = cache.find(x => x.key === key);
         if (item === undefined) {
             item = { key: key, value: factory(key) };
@@ -401,6 +398,24 @@ export function createCache<Key, T>(factory: (key: Key) => T) {
         }
         return item.value;
     };
+    const dispose = () => {
+        if (cache === undefined) throw Error("already disposed");
+        for (let item of cache) {
+            item.value.dispose();
+        }
+        cache = undefined;
+    };
+    return [get, dispose];
+}
+
+export class Cache<Key, T extends Dispose> implements Dispose {
+    constructor(readonly factory: (key: Key) => T) {
+        const [get, dispose] = createCache(factory);
+        this.get = get;
+        this.dispose = dispose;
+    }
+    readonly get: (key: Key) => T;
+    readonly dispose: () => void;
 }
 
 export class IndexBuffer implements Dispose {

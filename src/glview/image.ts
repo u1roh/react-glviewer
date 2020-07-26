@@ -6,6 +6,10 @@ import * as vbo from './vbo';
 export class ImageBoard implements glview.DrawableSource {
     private readonly boundary: vec.Sphere;
     private readonly entity: object;
+    private readonly drawers = new glview.Cache((gl: WebGLRenderingContext) => {
+        const buffer = vbo.createInterleavedPointUVsBuffer(gl, this.genRectPoints());
+        return new shaders.VertexUVsDrawer(gl, this.image, buffer, gl.TRIANGLE_FAN, this.entity);
+    });
     constructor(
         private readonly image: TexImageSource,
         private readonly area: vec.Box2 = new vec.Box2(new vec.Interval(0, image.width), new vec.Interval(0, image.height)),
@@ -18,10 +22,12 @@ export class ImageBoard implements glview.DrawableSource {
         );
         this.entity = entity || this;
     }
-    readonly getDrawer = glview.createCache((gl: WebGLRenderingContext) => {
-        const buffer = vbo.createInterleavedPointUVsBuffer(gl, this.genRectPoints());
-        return new shaders.VertexUVsDrawer(gl, this.image, buffer, gl.TRIANGLE_FAN, this.entity);
-    });
+    dispose() {
+        this.drawers.dispose();
+    }
+    getDrawer(gl: WebGLRenderingContext): glview.Drawable {
+        return this.drawers.get(gl);
+    }
     boundingSphere(): vec.Sphere {
         return this.boundary;
     }
